@@ -505,7 +505,7 @@ void PixelTree::analyze(const edm::Event& iEvent,
     iSetup.get<TrackerDigiGeometryRecord>().get(pDD);
 
     for (TrackerGeometry::DetContainer::const_iterator it = pDD->dets().begin(); it != pDD->dets().end(); it++){
-      if(dynamic_cast<PixelGeomDetUnit*>((*it))!=0){
+      if(dynamic_cast<const PixelGeomDetUnit*>((*it))!=0){
 	DetId detId = (*it)->geographicalId();
 	uint32_t newDetId = detId;
 	
@@ -1029,9 +1029,9 @@ void PixelTree::analyze(const edm::Event& iEvent,
 	fTkVy[fTkN]     = trackref->vy();
 	fTkVz[fTkN]     = trackref->vz();
 	fTkNHits[fTkN]  = trackref->hitPattern().numberOfValidHits();
-	fTkLHits[fTkN]  = trackref->hitPattern().numberOfLostHits();
-	fTkLHitsI[fTkN] = trackref->trackerExpectedHitsInner().numberOfLostTrackerHits();
-	fTkLHitsO[fTkN] = trackref->trackerExpectedHitsOuter().numberOfLostTrackerHits();
+	fTkLHits[fTkN]  = -1; //trackref->hitPattern().numberOfLostHits();
+	fTkLHitsI[fTkN] = -1.; //trackref->trackerExpectedHitsInner().numberOfLostTrackerHits();
+	fTkLHitsO[fTkN] = -1.; //trackref->trackerExpectedHitsOuter().numberOfLostTrackerHits();
 	fTkNHitFr[fTkN] = -1;
 	fTkType[fTkN]   = 1;
 	fTkMuI[fTkN]    = -1;
@@ -1644,7 +1644,7 @@ void PixelTree::analyze(const edm::Event& iEvent,
   // ----------------------------------------------------------------------
   // -- Clusters without tracks
   for (TrackerGeometry::DetContainer::const_iterator it = TG->dets().begin(); it != TG->dets().end(); it++){
-    if (dynamic_cast<PixelGeomDetUnit*>((*it)) != 0){ 
+    if (dynamic_cast<const PixelGeomDetUnit*>((*it)) != 0){ 
       DetId detId = (*it)->geographicalId();
 
       // -- clusters on this det
