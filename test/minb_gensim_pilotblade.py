@@ -27,7 +27,7 @@ process.load('Geometry.TrackerGeometryBuilder.trackerGeometry_cfi')
 process.trackerGeometry.applyAlignment = cms.bool(False)
 
 process.maxEvents = cms.untracked.PSet(
-    input = cms.untracked.int32(5000)
+    input = cms.untracked.int32(100)
 )
 
 # Input source
