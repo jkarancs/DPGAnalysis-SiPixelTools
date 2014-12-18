@@ -67,6 +67,7 @@ WHAT = os.environ.get('WHAT')
 if WHAT.find('POST') != -1:
   process.siPixelRawData.InputLabel = 'mix'
   process.siPixelDigis.InputLabel = 'siPixelRawData'
+  process.siPixelDigis.UsePilotBlade = cms.bool(True)
   process.siPixelClusters.src = 'siPixelDigis'
   process.anapost = cms.EDAnalyzer("PixDigisTestUL",
                                    Verbosity = cms.untracked.bool(True),
