@@ -128,9 +128,11 @@ PixDigisTestUL::~PixDigisTestUL() {
 // ----------------------------------------------------------------------
 void PixDigisTestUL::beginJob() {
   using namespace edm;
+  PRINT = true; 
   cout << "Initialize PixDigisTestUL," 
        << " src = " << src_.label() 
        << " srcCluster = " << srcCluster_.label() 
+       << " PRINT = " << PRINT
        << endl;
 
   edm::Service<TFileService> fs;
@@ -181,10 +183,10 @@ void PixDigisTestUL::analyze(const edm::Event& iEvent,
   const TrackerGeometry& theTracker(*geom);
 
   cout << "------- event " << event << "---------------------------------------------------------" << endl;
-  cout << "--- digis" << endl;
   // -- digis
   edm::Handle< edm::DetSetVector<PixelDigi> > pixelDigis;
   iEvent.getByToken(tPixelDigi, pixelDigis);
+  cout << "--- digis: " << pixelDigis->size() << endl;
 
   bool found(false);
 
@@ -196,7 +198,8 @@ void PixDigisTestUL::analyze(const edm::Event& iEvent,
       DetId detId(detid);
       unsigned int detType=detId.det(); // det type, tracker=1
       unsigned int subid=detId.subdetId(); //subdetector type, barrel=1
-
+      
+      //      cout << "detType = " << detType << endl;
      
       if(detType!=1) continue; // look only at tracker
 
@@ -208,9 +211,11 @@ void PixDigisTestUL::analyze(const edm::Event& iEvent,
 	  break;
 	}
       }
-      if (!found) continue; 
+      //      if (!found) continue; 
+      if (found) {
 
-      
+      }
+
       // Get the geom-detector 
       const PixelGeomDetUnit * theGeomDet =   dynamic_cast<const PixelGeomDetUnit*> ( theTracker.idToDet(detId) );
       LocalPoint lp(0., 0., 0.); 
@@ -320,11 +325,11 @@ void PixDigisTestUL::analyze(const edm::Event& iEvent,
 
   // Get Cluster Collection from InputTag
   {
-    cout << "--- clusters" << endl;
     edmNew::DetSet<SiPixelCluster>::const_iterator clustIt;
     edm::Handle< edmNew::DetSetVector<SiPixelCluster> > clusters;
     iEvent.getByToken(tPixelCluster, clusters);
     const edmNew::DetSetVector<SiPixelCluster>& input = *clusters;     
+    cout << "--- clusters: " << input.size() << endl;
     edmNew::DetSetVector<SiPixelCluster>::const_iterator DSViter=input.begin();
     for ( ; DSViter != input.end() ; DSViter++) {
 
@@ -341,7 +346,7 @@ void PixDigisTestUL::analyze(const edm::Event& iEvent,
 	  break;
 	}
       }
-      if (!found) continue; 
+      //      if (!found) continue; 
 
       if (0 == fHistMap.count(Form("H%d", detid))) {
 	cout << "creating hitmap for detid = " << detid << endl;
@@ -402,6 +407,8 @@ void PixDigisTestUL::analyze(const edm::Event& iEvent,
 	       << " channel = " << channel
 	       << endl;
 
+	  continue;
+
 	  TH2F *h2 = (TH2F*)fHistMap[Form("H%d", detid)]; 
 	  int ibin = h2->FindBin(pixx, pixy); 
 	  h2->SetBinContent(ibin, channel);
@@ -414,8 +421,10 @@ void PixDigisTestUL::analyze(const edm::Event& iEvent,
 
 
 	  h2 = (TH2F*)fHistMap[Form("gall%d", panel)]; 
+	  cout << "h2 = " << h2 << " panel = " << panel << " gpX = " << gpX << " gpY = " << gpY << endl;
 	  ibin = h2->FindBin(gpX, gpY); 
-	  h2->SetBinContent(ibin, channel);
+	  cout << "ibin = " << ibin << endl;
+	  if (ibin > 0) h2->SetBinContent(ibin, channel);
 	  
 	}
 	//      const PixelTopology *topol = &(theGeomDet->specificTopology());
