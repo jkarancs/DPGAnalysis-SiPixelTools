@@ -22,7 +22,7 @@ process.load('Configuration.EventContent.EventContent_cff')
 process.load('Configuration.StandardSequences.EndOfProcess_cff')
 
 process.maxEvents = cms.untracked.PSet(
-  input = cms.untracked.int32(-1)
+  input = cms.untracked.int32(500)
   )
 
 process.MessageLogger = cms.Service("MessageLogger",
@@ -65,9 +65,9 @@ process.siPixelClusters.MissCalibrate = cms.untracked.bool(False)
 
 WHAT = os.environ.get('WHAT')
 if WHAT.find('POST') != -1:
-  process.siPixelClusters.src = 'siPixelDigis'
   process.siPixelRawData.InputLabel = 'mix'
   process.siPixelDigis.InputLabel = 'siPixelRawData'
+  process.siPixelClusters.src = 'siPixelDigis'
   process.anapost = cms.EDAnalyzer("PixDigisTestUL",
                                    Verbosity = cms.untracked.bool(True),
                                    src = cms.InputTag("siPixelDigis"),
@@ -75,10 +75,9 @@ if WHAT.find('POST') != -1:
                                    )
   process.p1 = cms.Path(process.siPixelRawData*process.siPixelDigis*process.siPixelClusters*process.anapost)
 else:
-  #  process.siPixelClusters.src = 'simSiPixelDigis'
   process.siPixelClusters.src = 'mix'
   process.anapre = cms.EDAnalyzer("PixDigisTestUL",
-                                  Verbosity = cms.untracked.bool(False),
+                                  Verbosity = cms.untracked.bool(True),
                                   src = cms.InputTag("mix"),
                                   srcCluster = cms.InputTag("siPixelClusters")
                                   )
