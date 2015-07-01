@@ -1,14 +1,22 @@
 import FWCore.ParameterSet.Config as cms
-
 process = cms.Process("SiPixelDets")
+# needed for det-id
+process.load("Configuration.Geometry.GeometryRecoDB_cff")
 
-process.load("Configuration.StandardSequences.FrontierConditions_GlobalTag_cff")
-process.GlobalTag.globaltag = "GR_R_70_V1::All"
+#process.load("Configuration.StandardSequences.FrontierConditions_GlobalTag_cff")
+process.load("Configuration.StandardSequences.FrontierConditions_GlobalTag_condDBv2_cff")
+
+from Configuration.AlCa.GlobalTag_condDBv2 import GlobalTag
+#from Configuration.AlCa.GlobalTag import GlobalTag
+# to use no All 
+
+#process.GlobalTag = GlobalTag(process.GlobalTag, 'auto:run2_data', '')
+#process.GlobalTag = GlobalTag(process.GlobalTag, 'auto:run1_data', '')
+#process.GlobalTag = GlobalTag(process.GlobalTag, 'auto:run2_mc', '')
+process.GlobalTag = GlobalTag(process.GlobalTag, 'auto:run2_design', '')
 
 process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(1) )
 
-# needed for geometry->detunits
-process.load("Configuration.StandardSequences.Geometry_cff")
 
 process.source = cms.Source( "EmptySource",
 #process.source = cms.Source( "PoolSource",
@@ -25,6 +33,7 @@ process.TFileService = cms.Service("TFileService",
 
 # the analyzer itself - empty parameter set 
 process.test = cms.EDAnalyzer( "SiPixelDets",
+         phase1=cms.untracked.bool(False),   
 #        NPartForHisto = cms.untracked.int32(100),
 #        PtMaxForHisto = cms.untracked.double(200.0)
 )

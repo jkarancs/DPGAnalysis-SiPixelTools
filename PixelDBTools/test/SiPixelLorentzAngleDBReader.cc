@@ -9,10 +9,11 @@
 #include "Geometry/TrackerGeometryBuilder/interface/PixelGeomDetUnit.h"
 #include "FWCore/ServiceRegistry/interface/Service.h"
 #include "CommonTools/UtilAlgos/interface/TFileService.h"
-#include "DataFormats/SiPixelDetId/interface/PixelBarrelName.h"
-#include "DataFormats/SiPixelDetId/interface/PixelEndcapName.h"
+//#include "DataFormats/SiPixelDetId/interface/PixelBarrelName.h"
+//#include "DataFormats/SiPixelDetId/interface/PixelEndcapName.h"
 #include "DataFormats/SiPixelDetId/interface/PixelSubdetector.h"
 #include "FWCore/Framework/interface/MakerMacros.h"
+#include "DataFormats/TrackerCommon/interface/TrackerTopology.h"
 
 #include "SiPixelLorentzAngleDBReader.h"
 
@@ -21,19 +22,107 @@
 #include <sys/time.h>
 
 
+using namespace std;
 using namespace cms;
 
 SiPixelLorentzAngleDBReader::SiPixelLorentzAngleDBReader( const edm::ParameterSet& iConfig ):
   printdebug_(iConfig.getUntrackedParameter<bool>("printDebug",false)),
-  useSimRcd_( iConfig.getParameter<bool>("useSimRcd") )
-{
+  useSimRcd_( iConfig.getParameter<bool>("useSimRcd") ),
+  tagLabel_( iConfig.getUntrackedParameter<std::string>("label"," ")) {
+  /*
+BPix_BpI_SEC1_LYR1_LDR2_MOD2 302056472
+BPix_BpI_SEC1_LYR1_LDR2_MOD3 302056476
+BPix_BpI_SEC2_LYR1_LDR3_MOD1 302056212
+BPix_BpI_SEC4_LYR1_LDR5_MOD1 302055700
+BPix_BpI_SEC4_LYR1_LDR5_MOD3 302055708
+BPix_BpI_SEC6_LYR1_LDR7_MOD1 302060308
+BPix_BpI_SEC6_LYR1_LDR7_MOD2 302060312
+BPix_BpI_SEC8_LYR1_LDR9_MOD2 302059800
+BPix_BpI_SEC8_LYR1_LDR10_MOD3 302059548
+
+BPix_BpI_SEC1_LYR2_LDR1_MOD4 302123040
+BPix_BpI_SEC1_LYR2_LDR2_MOD1 302122772
+BPix_BpI_SEC1_LYR2_LDR2_MOD2 302122776
+BPix_BpI_SEC2_LYR2_LDR3_MOD1 302122516
+BPix_BpI_SEC2_LYR2_LDR4_MOD2 302122264
+BPix_BpI_SEC2_LYR2_LDR4_MOD4 302122272
+BPix_BpI_SEC3_LYR2_LDR5_MOD2 302122008
+BPix_BpI_SEC3_LYR2_LDR6_MOD2 302121752
+BPix_BpI_SEC4_LYR2_LDR7_MOD2 302121496
+BPix_BpI_SEC4_LYR2_LDR8_MOD2 302121240
+BPix_BpI_SEC4_LYR2_LDR8_MOD3 302121244
+BPix_BpI_SEC5_LYR2_LDR10_MOD2 302128920
+BPix_BpI_SEC5_LYR2_LDR10_MOD3 302128924
+BPix_BpI_SEC5_LYR2_LDR9_MOD2 302129176
+BPix_BpI_SEC5_LYR2_LDR9_MOD3 302129180
+BPix_BpI_SEC5_LYR2_LDR9_MOD4 302129184
+BPix_BpI_SEC6_LYR2_LDR12_MOD1 302128404
+BPix_BpI_SEC6_LYR2_LDR12_MOD2 302128408
+
+BPix_BpI_SEC1_LYR3_LDR2_MOD4 302189088
+BPix_BpI_SEC1_LYR3_LDR3_MOD1 302188820
+BPix_BpI_SEC1_LYR3_LDR3_MOD4 302188832
+BPix_BpI_SEC2_LYR3_LDR6_MOD1 302188052
+BPix_BpI_SEC3_LYR3_LDR8_MOD4 302187552
+BPix_BpI_SEC5_LYR3_LDR12_MOD2 302197784
+BPix_BpI_SEC5_LYR3_LDR13_MOD3 302197532
+BPix_BpI_SEC5_LYR3_LDR13_MOD4 302197536
+BPix_BpI_SEC6_LYR3_LDR15_MOD2 302197016
+BPix_BpI_SEC7_LYR3_LDR18_MOD1 302196244
+BPix_BpI_SEC8_LYR3_LDR22_MOD4 302195232
+BPix_BpI_SEC1_LYR3_LDR3_MOD2 302188824
+BPix_BpI_SEC4_LYR3_LDR11_MOD1 302186772
+BPix_BpI_SEC4_LYR3_LDR11_MOD4 302186784
+
+BPix_BmI_SEC3_LYR2_LDR5_MOD3 302121992
+
+BPix_BmI_SEC2_LYR3_LDR4_MOD3 302188552
+BPix_BmI_SEC3_LYR3_LDR9_MOD1 302187280
+BPix_BmI_SEC4_LYR3_LDR11_MOD1 302186768
+BPix_BmI_SEC4_LYR3_LDR11_MOD2 302186764
+BPix_BmI_SEC4_LYR3_LDR11_MOD4 302186756
+BPix_BmI_SEC5_LYR3_LDR13_MOD2 302197516
+  */
+
+  const unsigned int bpi1[9] = {
+    302056472, 302056476, 302056212, 302055700, 302055708, 302060308, 302060312,
+    302059800, 302059548
+  }; 
+  for(int i=0; i<9; ++i) l1New.push_back(bpi1[i]);
+  const unsigned int bpi2[18] = {
+    302123040, 302122772, 302122776, 302122516, 302122264, 302122272,
+    302122008, 302121752, 302121496, 302121240, 302121244, 302128920,
+    302128924, 302129176, 302129180, 302129184, 302128404, 302128408
+  }; 
+  for(int i=0; i<18; ++i) l2New.push_back(bpi2[i]);
+  const unsigned int bpi3[14] = {
+    302189088, 302188820, 302188832, 302188052, 302187552, 302197784,
+    302197532, 302197536, 302197016, 302196244, 302195232, 302188824,
+    302186772, 302186784
+  }; 
+  for(int i=0; i<14; ++i) l3New.push_back(bpi3[i]);
+
+  const unsigned int bmi2[1] = {302121992};
+  for(int i=0; i<1; ++i) l2New.push_back(bmi2[i]);
+  const unsigned int bmi3[6] = {
+    302188552, 302187280, 302186768, 302186764, 302186756, 302197516
+  };
+  for(int i=0; i<6; ++i) l3New.push_back(bmi3[i]);
+
 }
 
 SiPixelLorentzAngleDBReader::~SiPixelLorentzAngleDBReader(){}
 
 void SiPixelLorentzAngleDBReader::analyze( const edm::Event& e, const edm::EventSetup& iSetup) {
 
+  //Retrieve tracker topology from geometry
+  edm::ESHandle<TrackerTopology> tTopo;
+  iSetup.get<IdealGeometryRecord>().get(tTopo);
+  //const TrackerTopology* tt = tTopo.product()
+
  edm::ESHandle<SiPixelLorentzAngle> SiPixelLorentzAngle_; 
+
+
 
  if(useSimRcd_ == true) {
    iSetup.get<SiPixelLorentzAngleSimRcd>().get(SiPixelLorentzAngle_);
@@ -42,11 +131,15 @@ void SiPixelLorentzAngleDBReader::analyze( const edm::Event& e, const edm::Event
    
  } else {
    //edm::LogInfo("SiPixelLorentzAngleReader") <<" Show LA for reconstruction "<<std::endl;
-   std::cout<<" Show LA for reconstruction "<<std::endl;
-   iSetup.get<SiPixelLorentzAngleRcd>().get(SiPixelLorentzAngle_);
+   std::cout<<" Show LA for reconstruction, use label = "<<tagLabel_<<std::endl;
    // get the payloads with labels
-   //iSetup.get<SiPixelLorentzAngleRcd>().get("fromAlignment",SiPixelLorentzAngle_);
-   //iSetup.get<SiPixelLorentzAngleRcd>().get("forWidth",SiPixelLorentzAngle_);
+   if(tagLabel_=="fromAlignment") {
+     iSetup.get<SiPixelLorentzAngleRcd>().get("fromAlignment",SiPixelLorentzAngle_);
+   } else if(tagLabel_=="forWidth") {
+     iSetup.get<SiPixelLorentzAngleRcd>().get("forWidth",SiPixelLorentzAngle_);
+   } else {  // the nomral no label one 
+     iSetup.get<SiPixelLorentzAngleRcd>().get(SiPixelLorentzAngle_);
+   }
  }
 
  //edm::LogInfo("SiPixelLorentzAngleDBReader") << "[SiPixelLorentzAngleDBReader::analyze] End Reading SiPixelLorentzAngle" << std::endl;
@@ -82,11 +175,25 @@ void SiPixelLorentzAngleDBReader::analyze( const edm::Event& e, const edm::Event
   LABPixL3_[6] = fs->make<TH1F>("LABPixL3Z7","LorentzAngleBPix Lay3 Z7",150,0,0.15);
   LABPixL3_[7] = fs->make<TH1F>("LABPixL3Z8","LorentzAngleBPix Lay3 Z8",150,0,0.15);
 
+  LABPixL4_[0] = fs->make<TH1F>("LABPixL4Z1","LorentzAngleBPix Lay4 Z1",150,0,0.15);
+  LABPixL4_[1] = fs->make<TH1F>("LABPixL4Z2","LorentzAngleBPix Lay4 Z2",150,0,0.15);
+  LABPixL4_[2] = fs->make<TH1F>("LABPixL4Z3","LorentzAngleBPix Lay4 Z3",150,0,0.15);
+  LABPixL4_[3] = fs->make<TH1F>("LABPixL4Z4","LorentzAngleBPix Lay4 Z4",150,0,0.15);
+  LABPixL4_[4] = fs->make<TH1F>("LABPixL4Z5","LorentzAngleBPix Lay4 Z5",150,0,0.15);
+  LABPixL4_[5] = fs->make<TH1F>("LABPixL4Z6","LorentzAngleBPix Lay4 Z6",150,0,0.15);
+  LABPixL4_[6] = fs->make<TH1F>("LABPixL4Z7","LorentzAngleBPix Lay4 Z7",150,0,0.15);
+  LABPixL4_[7] = fs->make<TH1F>("LABPixL4Z8","LorentzAngleBPix Lay4 Z8",150,0,0.15);
+
 
   std::map<unsigned int,float> detid_la= SiPixelLorentzAngle_->getLorentzAngles();
   std::map<unsigned int,float>::const_iterator it;
 
-  double la_old=1.;
+  double la1New=-1. , la2New=-1. , la3New=-1.;
+  bool l1z[8]={false,false,false,false,false,false,false,false};
+  bool l2z[8]={false,false,false,false,false,false,false,false};
+  bool l3z[8]={false,false,false,false,false,false,false,false};
+  bool l4z[8]={false,false,false,false,false,false,false,false};
+
   for (it=detid_la.begin();it!=detid_la.end();it++) {
     auto detid = it->first;
     auto la = it->second;
@@ -96,54 +203,110 @@ void SiPixelLorentzAngleDBReader::analyze( const edm::Event& e, const edm::Event
     //edm::LogInfo("SiPixelLorentzAngleDBReader")  << "detid " << it->first << " \t" << " Lorentz angle  " << it->second;
 
     auto subdet   = DetId(detid).subdetId();
-    if(subdet == static_cast<int>(PixelSubdetector::PixelBarrel)){
+
+    if(subdet == static_cast<int>(PixelSubdetector::PixelBarrel)) {  // BPix
       LorentzAngleBarrel_->Fill(la);
+      
+      unsigned int layerC = tTopo->pxbLayer(detid);
+      // Barrel ladder id 1-20,32,44.
+      unsigned int ladderC = tTopo->pxbLadder(detid);
+      // Barrel Z-index=1,8
+      unsigned int moduleC = tTopo->pxbModule(detid);
+
+      //PXBDetId pdetId = PXBDetId(detid);
+      //unsigned int detTypeP=pdetId.det();
+      //unsigned int subidP=pdetId.subdetId();
+      // Barell layer = 1,2,3
+      //int layerC=pdetId.layer();
+      // Barrel ladder id 1-20,32,44.
+      //int ladderC=pdetId.ladder();
+      // Barrel Z-index=1,8
+      //int zindex=pdetId.module();
+
+      //if(layerC!=1) continue;  // use only layer 1
+
+      bool newModule=false;
+      for(vector<unsigned int>::iterator viter=l2New.begin();viter!=l2New.end();++viter) {
+	if(*viter == detid) { newModule=true; break;}
+      }
+      if(!newModule)
+	for(vector<unsigned int>::iterator viter=l3New.begin();viter!=l3New.end();++viter) {
+	  if(*viter == detid) { newModule=true; break;}
+	}
+      if(!newModule)
+	for(vector<unsigned int>::iterator viter=l1New.begin();viter!=l1New.end();++viter) {
+	  if(*viter == detid) { newModule=true; break;}
+	}
 
       //if(printdebug_) std::cout<<" bpix detid "<<detid<< " Lorentz angle "<< la<<std::endl;
       //edm::LogInfo("SiPixelLorentzAngleReader")  << " bpix detid " << it->first << " \t" << " Lorentz angle  " << it->second;
 
-      PXBDetId pdetId = PXBDetId(detid);
-      //unsigned int detTypeP=pdetId.det();
-      //unsigned int subidP=pdetId.subdetId();
-      // Barell layer = 1,2,3
-      int layerC=pdetId.layer();
-      // Barrel ladder id 1-20,32,44.
-      int ladderC=pdetId.ladder();
-      // Barrel Z-index=1,8
-      int zindex=pdetId.module();
       
-      if     (layerC==1) LABPixL1_[zindex-1]->Fill(la);
-      else if(layerC==2) LABPixL2_[zindex-1]->Fill(la);
-      else if(layerC==3) LABPixL3_[zindex-1]->Fill(la);
+      if     (layerC==1) LABPixL1_[moduleC-1]->Fill(la);
+      else if(layerC==2) LABPixL2_[moduleC-1]->Fill(la);
+      else if(layerC==3) LABPixL3_[moduleC-1]->Fill(la);
+      else if(layerC==4) LABPixL4_[moduleC-1]->Fill(la);
 
       if(printdebug_) {
-	// print only one ladder, so once per ring
-	if(ladderC==1) std::cout<<"BPix - layer "<<layerC<<" ladder "<<ladderC<<" ring "<<zindex
-				<<" Lorentz angle  "<<la<< std::endl;
-	//edm::LogInfo("SiPixelLorentzAngleReader")  <<"BPix - layer "<<layerC<<" ladder "<<ladderC<<" ring "<<zindex<< " Lorentz angle  " << it->second
+
+	std::cout<<"BPix - layer "<<layerC<<" ladder "<<ladderC<<" ring "<<moduleC<< " Lorentz angle  " <<la << std::endl;
+	if(newModule) {
+	  if     (layerC==1) la1New = la;
+	  else if(layerC==2) la2New = la;
+	  else if(layerC==3) la3New = la;	    
+	}
 
       } else {
 
-	if(ladderC==1) { // print once per ring 
-	  if(la != la_old) {
-	    std::cout<<"BPix - layer "<<layerC<<" ladder "<<ladderC<<" ring "<<zindex<< " Lorentz angle  " <<la << std::endl;
-	    //edm::LogInfo("SiPixelLorentzAngleReader")  <<"BPix - layer "<<layerC<<" ladder "<<ladderC<<" ring "<<zindex<< " Lorentz angle  " << it->second;
-	  } // else {std::cout<<"same"<<std::endl;}
+	// print only one ladder, so once per ring, seperate new modules 
+	if(!newModule) {
+	  if     (layerC==1) {
+	    if(!l1z[moduleC-1])  
+	      std::cout<<"BPix - layer "<<layerC<<" ladder "<<ladderC<<" ring "<<moduleC
+		       <<" Lorentz angle  "<<la<< std::endl;
+	    l1z[moduleC-1]=true;
+	  } else if(layerC==2) {
+	    if(!l2z[moduleC-1])  
+	      std::cout<<"BPix - layer "<<layerC<<" ladder "<<ladderC<<" ring "<<moduleC
+		       <<" Lorentz angle  "<<la<< std::endl;
+	    l2z[moduleC-1]=true;
 
-	  la_old = la;
-	} // ladder=1
+	  } else if(layerC==3) {
+	    if(!l3z[moduleC-1])  
+	      std::cout<<"BPix - layer "<<layerC<<" ladder "<<ladderC<<" ring "<<moduleC
+		       <<" Lorentz angle  "<<la<< std::endl;
+	    l3z[moduleC-1]=true;
 
-      } // if print 
+	  } else if(layerC==4) {
+	    if(!l4z[moduleC-1])  
+	      std::cout<<"BPix - layer "<<layerC<<" ladder "<<ladderC<<" ring "<<moduleC
+		       <<" Lorentz angle  "<<la<< std::endl;
+	    l4z[moduleC-1]=true;
+	  }
+
+	} else { // new module 
+	  if     (layerC==1) la1New = la;
+	  else if(layerC==2) la2New = la;
+	  else if(layerC==3) la3New = la;	    
+	} // new module 
+
+      } // end print if
 
     } else if(subdet == static_cast<int>(PixelSubdetector::PixelEndcap)){
       LorentzAngleForward_->Fill(la);
 
-      PXFDetId pdetId = PXFDetId(detid);       
-      int disk=pdetId.disk(); //1,2,3
-      int blade=pdetId.blade(); //1-24
-      int moduleF=pdetId.module(); //
-      int side=pdetId.side(); //size=1 for -z, 2 for +z
-      int panel=pdetId.panel(); //panel=1
+      unsigned int disk=tTopo->pxfDisk(detid);   //1,2,3
+      unsigned int blade=tTopo->pxfBlade(detid); //1-24
+      unsigned int side=tTopo->pxfSide(detid);   //sizd=1 for -z, 2 for +z
+      unsigned int panel=tTopo->pxfPanel(detid);   //sizd=1 for -z, 2 for +z
+      unsigned int moduleF=tTopo->pxfModule(detid); //
+      
+      //PXFDetId pdetId = PXFDetId(detid);       
+      //int disk=pdetId.disk(); //1,2,3
+      //int blade=pdetId.blade(); //1-24
+      //int moduleF=pdetId.module(); //
+      //int side=pdetId.side(); //size=1 for -z, 2 for +z
+      //int panel=pdetId.panel(); //panel=1
 
       if(blade==1 && moduleF==1 && side==1 && panel==1) { // print once per disk 
 	std::cout<<"FPix - disk "<<disk<< " Lorentz angle  " << it->second  << std::endl;
@@ -154,6 +317,7 @@ void SiPixelLorentzAngleDBReader::analyze( const edm::Event& e, const edm::Event
 
   }  // end for loop 
 
+  std::cout<<" LA for new modules "<<la1New<<" "<<la2New<<" "<<la3New<<std::endl;
 }
 
 //define this as a plug-in

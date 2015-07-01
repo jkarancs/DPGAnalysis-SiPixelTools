@@ -1,6 +1,17 @@
 import FWCore.ParameterSet.Config as cms
-
 process = cms.Process("Test")
+
+process.load("Configuration.Geometry.GeometryRecoDB_cff")
+process.load("Configuration.StandardSequences.FrontierConditions_GlobalTag_cff")
+#process.load("Configuration.StandardSequences.FrontierConditions_GlobalTag_condDBv2_cff")
+from Configuration.AlCa.GlobalTag_condDBv2 import GlobalTag
+#from Configuration.AlCa.GlobalTag import GlobalTag
+#process.GlobalTag = GlobalTag(process.GlobalTag, 'auto:run2_data', '')
+#process.GlobalTag = GlobalTag(process.GlobalTag, 'auto:run1_data', '')
+#process.GlobalTag = GlobalTag(process.GlobalTag, 'auto:run2_mc', '')
+process.GlobalTag = GlobalTag(process.GlobalTag, 'auto:run2_design', '')
+
+
 process.maxEvents = cms.untracked.PSet(
     input = cms.untracked.int32(1)
 )
@@ -24,15 +35,10 @@ process.MessageLogger = cms.Service("MessageLogger",
     destinations = cms.untracked.vstring('cout')
 )
 
-#process.Timing = cms.Service("Timing")
 
-process.load("Configuration.StandardSequences.FrontierConditions_GlobalTag_cff")
-process.GlobalTag.globaltag = "GR_R_70_V1::All"
-
-process.load("Configuration.StandardSequences.GeometryIdeal_cff")
 
 # DB stuff 
-useLocalDB = False
+useLocalDB = True
 if useLocalDB :
   process.QualityReader = cms.ESSource("PoolDBESSource",
     BlobStreamerName = cms.untracked.string('TBufferBlobStreamingService'),
@@ -43,9 +49,12 @@ if useLocalDB :
     # timetype = cms.string('runnumber'),
     toGet = cms.VPSet(cms.PSet(
         record = cms.string('SiPixelQualityFromDbRcd'),
-        tag = cms.string('SiPixelQuality_v03')
+#        tag = cms.string('SiPixelQuality_test')
+        tag = cms.string('SiPixelQuality_phase1_ideal')
+#        tag = cms.string('SiPixelQuality_v03')
     )),
-    connect = cms.string('sqlite_file:Quality_v03.db')
+#    connect = cms.string('sqlite_file:SiPixelQuality_test.db')
+    connect = cms.string('sqlite_file:SiPixelQuality_phase1_ideal.db')
   )
   process.es_prefer_QualityReader = cms.ESPrefer("PoolDBESSource","QualityReader")
 #  end if
