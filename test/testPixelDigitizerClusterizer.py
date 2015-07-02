@@ -5,20 +5,22 @@ import FWCore.ParameterSet.Config as cms
 process = cms.Process("Test")
 
 process.load("FWCore.MessageLogger.MessageLogger_cfi")
-process.load("Configuration.StandardSequences.Geometry_cff")
+process.load("Configuration.Geometry.GeometryDB_cff")
 #process.load("Configuration.Geometry.GeometryIdeal_cff")
 #process.load('Configuration.Geometry.GeometryExtended2015Reco_cff')
 #process.load('Configuration.Geometry.GeometryExtended2015_cff')
 process.load("Geometry.CMSCommonData.cmsExtendedGeometry2015PilotXML_cfi")
-#process.load("Geometry.TrackerNumberingBuilder.trackerNumberingGeometry_cfi")
 
 process.load("Configuration.StandardSequences.MagneticField_38T_cff")
-process.load("Configuration.StandardSequences.FrontierConditions_GlobalTag_cff")
 process.load("Configuration.StandardSequences.Services_cff")
 process.load("SimGeneral.HepPDTESSource.pythiapdt_cfi")
 
-process.load('Geometry.TrackerGeometryBuilder.trackerGeometry_cfi')
-process.trackerGeometry.applyAlignment = cms.bool(False)
+#process.load('Geometry.TrackerGeometryBuilder.trackerGeometry_cfi')
+#process.trackerGeometry.applyAlignment = cms.bool(False)
+
+process.load("Configuration.StandardSequences.FrontierConditions_GlobalTag_condDBv2_cff")
+from Configuration.AlCa.GlobalTag_condDBv2 import GlobalTag
+process.GlobalTag = GlobalTag(process.GlobalTag, 'auto:run1_mc', '')
 
 # from v7
 #process.load("SimGeneral.MixingModule.pixelDigitizer_cfi")
@@ -208,13 +210,6 @@ process.source = cms.Source("PoolSource", fileNames = cms.untracked.vstring(
     'file:./minb_gensim_pilotblade.root'
   )
 )
-
-# Choose the global tag here:
-# for v7.0
-#process.GlobalTag.globaltag = 'MC_70_V1::All'
-#process.GlobalTag.globaltag = "PRE_STA71_V2::All"
-#process.GlobalTag.globaltag = 'START62_V1::All'
-process.GlobalTag.globaltag = 'START71_V1::All'
 
 #change to local tag
 ## import CalibTracker.Configuration.Common.PoolDBESSource_cfi
