@@ -50,22 +50,6 @@
 #include "HLTrigger/HLTcore/interface/HLTConfigProvider.h"
 #include "FWCore/Common/interface/TriggerNames.h"
 
-// -- residuals
-#include "TrackingTools/TrackAssociator/interface/TrackDetectorAssociator.h"
-#include "TrackingTools/PatternTools/interface/Trajectory.h"
-#include "TrackingTools/TrajectoryState/interface/TrajectoryStateTransform.h"
-#include "TrackingTools/TransientTrack/interface/TransientTrack.h"
-#include "TrackingTools/PatternTools/interface/TrajTrackAssociation.h"
-
-#include "TrackingTools/TrackFitters/interface/TrajectoryFitter.h"
-#include "TrackingTools/TrackFitters/interface/TrajectoryStateCombiner.h"
-
-#include "Alignment/OfflineValidation/interface/TrackerValidationVariables.h"
-#include "TrackingTools/TrackAssociator/interface/TrackAssociatorParameters.h"
-#include "TrackingTools/TrackAssociator/interface/TrackDetectorAssociator.h"
-
-
-
 // To use root histos
 #include "FWCore/ServiceRegistry/interface/Service.h"
 #include "CommonTools/UtilAlgos/interface/TFileService.h"
@@ -104,8 +88,6 @@ private:
   bool PRINT;
   edm::EDGetTokenT<edm::DetSetVector<PixelDigi>> tPixelDigi;
   edm::EDGetTokenT<edmNew::DetSetVector<SiPixelCluster>> tPixelCluster;
-  edm::EDGetTokenT<TrajTrackAssociationCollection> TTAToken;
-
   edm::InputTag src_;  
   edm::InputTag srcCluster_;  
 };
@@ -117,7 +99,6 @@ PixDigisTestUL::PixDigisTestUL(const edm::ParameterSet& iConfig) {
   srcCluster_ =  iConfig.getParameter<edm::InputTag>( "srcCluster" );
   tPixelDigi = consumes <edm::DetSetVector<PixelDigi> > (src_);
   tPixelCluster = consumes <edmNew::DetSetVector<SiPixelCluster> > (srcCluster_);
-  TTAToken =consumes  <TrajTrackAssociationCollection> (edm::InputTag("ctfRefitter"));
 }
 
 // ----------------------------------------------------------------------
@@ -151,7 +132,6 @@ void PixDigisTestUL::beginJob() {
   cout << "HELLO WORLD: ";
   for (unsigned int i = 0; i < fNewList.size(); ++i) cout << fNewList[i] << " "; 
   cout << endl;
-
 
   // Histos go to a subdirectory "PixRecHits")
   //TFileDirectory subDir = fs->mkdir( "mySubDirectory" );
@@ -334,7 +314,6 @@ void PixDigisTestUL::analyze(const edm::Event& iEvent,
     for ( ; DSViter != input.end() ; DSViter++) {
 
       unsigned int detid = DSViter->detId();
-
       unsigned int blade = tTopo->pxfBlade(detid); 
       unsigned int panel = tTopo->pxfPanel(detid);
       

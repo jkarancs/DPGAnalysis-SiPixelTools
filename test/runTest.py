@@ -22,7 +22,7 @@ process.load('Configuration.EventContent.EventContent_cff')
 process.load('Configuration.StandardSequences.EndOfProcess_cff')
 
 process.maxEvents = cms.untracked.PSet(
-  input = cms.untracked.int32(500)
+  input = cms.untracked.int32(-1)
   )
 
 process.MessageLogger = cms.Service("MessageLogger",

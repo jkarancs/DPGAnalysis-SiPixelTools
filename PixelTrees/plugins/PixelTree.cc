@@ -1029,9 +1029,9 @@ void PixelTree::analyze(const edm::Event& iEvent,
 	fTkVy[fTkN]     = trackref->vy();
 	fTkVz[fTkN]     = trackref->vz();
 	fTkNHits[fTkN]  = trackref->hitPattern().numberOfValidHits();
-	fTkLHits[fTkN]  = -1; //trackref->hitPattern().numberOfLostHits();
-	fTkLHitsI[fTkN] = -1; //trackref->trackerExpectedHitsInner().numberOfLostTrackerHits();
-	fTkLHitsO[fTkN] = -1; //trackref->trackerExpectedHitsOuter().numberOfLostTrackerHits();
+	fTkLHits[fTkN]  = trackref->hitPattern().numberOfLostHits(reco::HitPattern::TRACK_HITS);
+	fTkLHitsI[fTkN] = trackref->hitPattern().numberOfLostHits(reco::HitPattern::MISSING_INNER_HITS);  
+	fTkLHitsO[fTkN] = trackref->hitPattern().numberOfLostHits(reco::HitPattern::MISSING_OUTER_HITS); 
 	fTkNHitFr[fTkN] = -1;
 	fTkType[fTkN]   = 1;
 	fTkMuI[fTkN]    = -1;
@@ -1652,12 +1652,14 @@ void PixelTree::analyze(const edm::Event& iEvent,
       // -- rechits on this det
       SiPixelRecHitCollection::const_iterator dsmatch = hRecHitColl->find(detId);
       SiPixelRecHitCollection::DetSet rhRange;
+      SiPixelRecHitCollection::DetSet::const_iterator rhIteratorBegin(0);
+      SiPixelRecHitCollection::DetSet::const_iterator rhIteratorEnd=rhIteratorBegin;
+      SiPixelRecHitCollection::DetSet::const_iterator iRh;
       if (dsmatch != hRecHitColl->end()) { 
 	rhRange = *dsmatch;
-      }
-      SiPixelRecHitCollection::DetSet::const_iterator rhIteratorBegin = rhRange.begin();
-      SiPixelRecHitCollection::DetSet::const_iterator rhIteratorEnd = rhRange.end();
-      SiPixelRecHitCollection::DetSet::const_iterator iRh;
+        rhIteratorBegin = rhRange.begin();
+        rhIteratorEnd = rhRange.end();
+}
 
       if (isearch != clustColl.end()) {  // Not an empty iterator
 	edmNew::DetSet<SiPixelCluster>::const_iterator  di;
