@@ -50,7 +50,6 @@
 #include "HLTrigger/HLTcore/interface/HLTConfigProvider.h"
 #include "FWCore/Common/interface/TriggerNames.h"
 
-
 // To use root histos
 #include "FWCore/ServiceRegistry/interface/Service.h"
 #include "CommonTools/UtilAlgos/interface/TFileService.h"
@@ -84,7 +83,8 @@ public:
   virtual void endJob(); 
 
 private:
-  map<int, TH2F*> fHistMap;
+  map<string, TH1*> fHistMap;
+  vector<unsigned int> fNewList; 
   bool PRINT;
   edm::EDGetTokenT<edm::DetSetVector<PixelDigi>> tPixelDigi;
   edm::EDGetTokenT<edmNew::DetSetVector<SiPixelCluster>> tPixelCluster;
@@ -109,12 +109,38 @@ PixDigisTestUL::~PixDigisTestUL() {
 // ----------------------------------------------------------------------
 void PixDigisTestUL::beginJob() {
   using namespace edm;
+  PRINT = true; 
   cout << "Initialize PixDigisTestUL," 
        << " src = " << src_.label() 
        << " srcCluster = " << srcCluster_.label() 
+       << " PRINT = " << PRINT
        << endl;
 
   edm::Service<TFileService> fs;
+  fHistMap.insert(make_pair("gall1", fs->make<TH2F>("gall1", "gall1", 1500, -15., 15., 1500, -15., 15.)));
+  fHistMap.insert(make_pair("gall2", fs->make<TH2F>("gall2", "gall2", 1500, -15., 15., 1500, -15., 15.)));
+
+  fNewList.push_back(344130820);
+  fNewList.push_back(344131076);
+  fNewList.push_back(344131844);
+  fNewList.push_back(344132100);
+  fNewList.push_back(344132868);
+  fNewList.push_back(344133124);
+  fNewList.push_back(344133892);
+  fNewList.push_back(344134148);
+
+  cout << "Pilot blade detids: ";
+  for (unsigned int i = 0; i < fNewList.size(); ++i) {
+    cout << fNewList[i] << " "; 
+    fHistMap.insert(make_pair(Form("d%dadc", fNewList[i]), 
+			      fs->make<TH1F>(Form("d%dadc", fNewList[i]), Form("d%dadc", fNewList[i]), 100, 0., 256.)));
+
+    fHistMap.insert(make_pair(Form("d%dhitmap", fNewList[i]), 
+			      fs->make<TH2F>(Form("d%dhitmap", fNewList[i]), Form("d%dhitmap", fNewList[i]), 416, 0., 416, 160, 0., 160.)));
+
+  }
+
+  cout << endl;
 
   // Histos go to a subdirectory "PixRecHits")
   //TFileDirectory subDir = fs->mkdir( "mySubDirectory" );
@@ -146,10 +172,12 @@ void PixDigisTestUL::analyze(const edm::Event& iEvent,
   const TrackerGeometry& theTracker(*geom);
 
   cout << "------- event " << event << "---------------------------------------------------------" << endl;
-  cout << "--- digis" << endl;
   // -- digis
   edm::Handle< edm::DetSetVector<PixelDigi> > pixelDigis;
   iEvent.getByToken(tPixelDigi, pixelDigis);
+  cout << "--- digis: " << pixelDigis->size() << endl;
+
+  bool found(false);
 
   // Iterate on detector units
   {
@@ -160,8 +188,23 @@ void PixDigisTestUL::analyze(const edm::Event& iEvent,
       unsigned int detType=detId.det(); // det type, tracker=1
       unsigned int subid=detId.subdetId(); //subdetector type, barrel=1
       
+      //      cout << "detType = " << detType << endl;
+     
       if(detType!=1) continue; // look only at tracker
-      
+
+      // -- only look at pilot blade modules
+      found = false;
+      for (unsigned int i = 0; i < fNewList.size(); ++i) {
+	if (detid == fNewList[i]) {
+	  found = true; 
+	  break;
+	}
+      }
+      //      if (!found) continue; 
+      if (found) {
+
+      }
+
       // Get the geom-detector 
       const PixelGeomDetUnit * theGeomDet =   dynamic_cast<const PixelGeomDetUnit*> ( theTracker.idToDet(detId) );
       LocalPoint lp(0., 0., 0.); 
@@ -169,7 +212,7 @@ void PixDigisTestUL::analyze(const edm::Event& iEvent,
       TVector3 t3(gp0.x(), gp0.y(), gp0.z()); 
       if(PRINT) 
 	cout<<"Det: "<<detId.rawId()<<" "<<detId.null()<<" "<<detType<<" "<<subid
-	    << "x/y/z = " << gp0.x() << "/" << gp0.y() << "/" << gp0.z() 
+	    << " x/y/z = " << gp0.x() << "/" << gp0.y() << "/" << gp0.z() 
 	    << " eta = " << t3.Eta()
 	    <<endl;
       
@@ -256,7 +299,9 @@ void PixDigisTestUL::analyze(const edm::Event& iEvent,
       
       // -- Look at digis now
       edm::DetSet<PixelDigi>::const_iterator  di;
-      for(di = DSViter->data.begin(); di != DSViter->data.end(); di++) {
+      TH1F *h1(0);
+      TH2F *h2(0);
+      for (di = DSViter->data.begin(); di != DSViter->data.end(); di++) {
 	numberOfDigis++;
 	int adc = di->adc();    // charge, modifued to unsiged short 
 	int col = di->column(); // column 
@@ -264,25 +309,61 @@ void PixDigisTestUL::analyze(const edm::Event& iEvent,
 	int channel = PixelChannelIdentifier::pixelToChannel(row,col);
 	if(PRINT) cout <<numberOfDigis<< " Col: " << col << " Row: " << row 
 		       << " ADC: " << adc <<" channel = "<<channel<<endl;
+
+	h1 = (TH1F*)fHistMap[Form("d%dadc", detid)]; 
+	if (h1) h1->Fill(adc); 
+	else cout << "histogram " << Form("d%dadc", detid) << " not found" << endl;
+
+	h2 = (TH2F*)fHistMap[Form("d%dhitmap", detid)]; 
+	if (h2) {
+	  h2->Fill(col, row); 
+	} else {
+	  cout << "histogram " << Form("d%dhitmap", detid) << " not found" << endl;
+	}
+
+
       } // end for digis in detunit
     } // end for det-units
   }
 
 
   // Get Cluster Collection from InputTag
-  {
-    cout << "--- clusters" << endl;
+  if (0) {
     edmNew::DetSet<SiPixelCluster>::const_iterator clustIt;
     edm::Handle< edmNew::DetSetVector<SiPixelCluster> > clusters;
     iEvent.getByToken(tPixelCluster, clusters);
     const edmNew::DetSetVector<SiPixelCluster>& input = *clusters;     
+    cout << "--- clusters: " << input.size() << endl;
     edmNew::DetSetVector<SiPixelCluster>::const_iterator DSViter=input.begin();
     for ( ; DSViter != input.end() ; DSViter++) {
 
       unsigned int detid = DSViter->detId();
-      if (0 == fHistMap.count(detid)) {
+      unsigned int blade = tTopo->pxfBlade(detid); 
+      unsigned int panel = tTopo->pxfPanel(detid);
+      
+      // -- only look at pilot blade modules
+      found = false;
+      for (unsigned int i = 0; i < fNewList.size(); ++i) {
+	if (detid == fNewList[i]) {
+	  found = true; 
+	  break;
+	}
+      }
+      //      if (!found) continue; 
+
+      if (0 == fHistMap.count(Form("H%d", detid))) {
 	cout << "creating hitmap for detid = " << detid << endl;
-	fHistMap.insert(make_pair(detid, fs->make<TH2F>(Form("H%d", detid), Form("H%d", detid), 160, 0., 160., 416, 0., 416.))); 
+	fHistMap.insert(make_pair(Form("H%d", detid), fs->make<TH2F>(Form("H%d", detid), Form("H%d", detid), 160, 0., 160., 416, 0., 416.))); 
+      }
+
+      if (0 == fHistMap.count(Form("G%d", detid))) {
+	cout << "creating hitmap for detid = " << detid << endl;
+	fHistMap.insert(make_pair(Form("G%d", detid), fs->make<TH2F>(Form("G%d", detid), Form("G%d", detid), 1500, -15., 15., 1500, -15., 15.))); 
+      }
+
+      if (0 == fHistMap.count(Form("z%d", detid))) {
+	cout << "creating z hist for detid = " << detid << endl;
+	fHistMap.insert(make_pair(Form("z%d", detid), fs->make<TH1F>(Form("z%d", detid), Form("z%d", detid), 1000, 0., 100.))); 
       }
 
       DetId detId = DetId(detid);       // Get the Detid object
@@ -318,16 +399,35 @@ void PixDigisTestUL::analyze(const edm::Event& iEvent,
 
 	  double gpX = gpp.x();
 	  double gpY = gpp.y();
+	  double gpZ = gpp.z();
 	  int channel = PixelChannelIdentifier::pixelToChannel(pixx, pixy);
 
 	  cout << "  detid = " << detid
-	       << " cluster global x/y = " << gX << "/" << gY 
+	       << " panel = " << panel << " blade = " << blade 
+	       << " cluster global x/y/z = " << gX << "/" << gY << "/" << gZ << "(" << gpZ << ")"
 	       << " pixel global x/y = " << gpX << "/" << gpY 
-	       << " indices = " << pixx << "/" << pixy 
+	       << " local x/y = " << pixx << "/" << pixy 
 	       << " channel = " << channel
 	       << endl;
 
-	  fHistMap[detid]->SetBinContent(pixx, pixy, channel);
+	  continue;
+
+	  TH2F *h2 = (TH2F*)fHistMap[Form("H%d", detid)]; 
+	  int ibin = h2->FindBin(pixx, pixy); 
+	  h2->SetBinContent(ibin, channel);
+
+	  h2 = (TH2F*)fHistMap[Form("G%d", detid)]; 
+	  ibin = h2->FindBin(gpX, gpY); 
+	  h2->SetBinContent(ibin, channel);
+
+	  fHistMap[Form("z%d", detid)]->Fill(TMath::Abs(gpZ));
+
+
+	  h2 = (TH2F*)fHistMap[Form("gall%d", panel)]; 
+	  cout << "h2 = " << h2 << " panel = " << panel << " gpX = " << gpX << " gpY = " << gpY << endl;
+	  ibin = h2->FindBin(gpX, gpY); 
+	  cout << "ibin = " << ibin << endl;
+	  if (ibin > 0) h2->SetBinContent(ibin, channel);
 	  
 	}
 	//      const PixelTopology *topol = &(theGeomDet->specificTopology());
@@ -344,8 +444,7 @@ void PixDigisTestUL::analyze(const edm::Event& iEvent,
 
 
 
-
-
+  
 }
 
 // ----------------------------------------------------------------------
