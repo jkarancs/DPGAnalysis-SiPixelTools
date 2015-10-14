@@ -166,7 +166,7 @@ process.siPixelClusters.MissCalibrate = cms.untracked.bool(False)
 process.siPixelClusters.src = cms.InputTag("siPixelDigis")
 
 process.ana = cms.EDAnalyzer(
-  "PixDigisTestUL",
+  "PixDigiAna",
   Verbosity = cms.untracked.bool(True),
   src = cms.InputTag("siPixelDigis"),
   srcCluster = cms.InputTag("siPixelClusters"),

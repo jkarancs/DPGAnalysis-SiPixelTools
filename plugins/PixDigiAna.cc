@@ -72,12 +72,12 @@
 using namespace std;
 
 // ----------------------------------------------------------------------
-class PixDigisTestUL : public edm::EDAnalyzer {
+class PixDigiAna : public edm::EDAnalyzer {
 
 public:
 
-  explicit PixDigisTestUL(const edm::ParameterSet&);
-  ~PixDigisTestUL();
+  explicit PixDigiAna(const edm::ParameterSet&);
+  ~PixDigiAna();
   virtual void beginJob();
   virtual void analyze(const edm::Event&, const edm::EventSetup&);
   virtual void endJob(); 
@@ -93,7 +93,7 @@ private:
 };
 
 // ----------------------------------------------------------------------
-PixDigisTestUL::PixDigisTestUL(const edm::ParameterSet& iConfig) {
+PixDigiAna::PixDigiAna(const edm::ParameterSet& iConfig) {
   PRINT = iConfig.getUntrackedParameter<bool>("Verbosity",false);
   src_ =  iConfig.getParameter<edm::InputTag>( "src" );
   srcCluster_ =  iConfig.getParameter<edm::InputTag>( "srcCluster" );
@@ -102,15 +102,15 @@ PixDigisTestUL::PixDigisTestUL(const edm::ParameterSet& iConfig) {
 }
 
 // ----------------------------------------------------------------------
-PixDigisTestUL::~PixDigisTestUL() {
-  cout<<" Destroy PixDigisTestUL "<<endl;
+PixDigiAna::~PixDigiAna() {
+  cout<<" Destroy PixDigiAna "<<endl;
 }
 
 // ----------------------------------------------------------------------
-void PixDigisTestUL::beginJob() {
+void PixDigiAna::beginJob() {
   using namespace edm;
   PRINT = true; 
-  cout << "Initialize PixDigisTestUL," 
+  cout << "Initialize PixDigiAna," 
        << " src = " << src_.label() 
        << " srcCluster = " << srcCluster_.label() 
        << " PRINT = " << PRINT
@@ -152,7 +152,7 @@ void PixDigisTestUL::beginJob() {
 }
 
 // ----------------------------------------------------------------------
-void PixDigisTestUL::analyze(const edm::Event& iEvent, 
+void PixDigiAna::analyze(const edm::Event& iEvent, 
 			   const edm::EventSetup& iSetup) {
 
   edm::Service<TFileService> fs;
@@ -448,9 +448,9 @@ void PixDigisTestUL::analyze(const edm::Event& iEvent,
 }
 
 // ----------------------------------------------------------------------
-void PixDigisTestUL::endJob(){
-  cout << " End PixDigisTestUL " << endl;
+void PixDigiAna::endJob(){
+  cout << " End PixDigiAna " << endl;
 }
 
 //define this as a plug-in
-DEFINE_FWK_MODULE(PixDigisTestUL);
+DEFINE_FWK_MODULE(PixDigiAna);
