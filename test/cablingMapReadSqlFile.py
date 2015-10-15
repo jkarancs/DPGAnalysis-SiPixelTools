@@ -8,7 +8,7 @@ process.load("CalibTracker.Configuration.SiPixelCabling.SiPixelCabling_SQLite_cf
 process.siPixelCabling.connect = 'sqlite_file:cabling.db'
 process.siPixelCabling.toGet = cms.VPSet(cms.PSet(
     record = cms.string('SiPixelFedCablingMapRcd'),
-    tag = cms.string('SiPixelFedCablingMap_v20')
+    tag = cms.string('SiPixelFedCablingMap_v21')
 ))
 
 process.MessageLogger = cms.Service("MessageLogger",
