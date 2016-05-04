@@ -14,9 +14,9 @@ process.load("Configuration.StandardSequences.FrontierConditions_GlobalTag_condD
 from Configuration.AlCa.GlobalTag_condDBv2 import GlobalTag
 #process.GlobalTag = GlobalTag(process.GlobalTag, 'auto:run2_data', '')
 #process.GlobalTag = GlobalTag(process.GlobalTag, 'auto:run1_data', '')
-#process.GlobalTag = GlobalTag(process.GlobalTag, 'auto:run2_mc', '')
+process.GlobalTag = GlobalTag(process.GlobalTag, 'auto:run2_mc', '')
 #process.GlobalTag = GlobalTag(process.GlobalTag, 'auto:run2_design', '')
-process.GlobalTag.globaltag = 'GR_P_V56' # for 247607
+#process.GlobalTag.globaltag = 'GR_P_V56' # for 247607
 
 process.maxEvents = cms.untracked.PSet(
     input = cms.untracked.int32(-1)
@@ -36,8 +36,10 @@ process.MessageLogger = cms.Service("MessageLogger",
 
 process.source = cms.Source("PoolSource",
     fileNames =  cms.untracked.vstring(
-#    'file:../scripts/digis.root'
-    'file:/afs/cern.ch/work/d/dkotlins/public/data/digis/digi_zb_248025.root'
+#    'file:../scripts/digis4.root'
+    'file:/afs/cern.ch/work/d/dkotlins/public/MC/mu/pt100_74/digis/digis1.root'
+#    'file:/afs/cern.ch/work/d/dkotlins/public/data/digis/digi_zb_248025.root'
+#    '/store/user/kotlinski/mu100_v74/digis/digis1.root'
     )
 )
 
@@ -52,8 +54,9 @@ process.a = cms.EDAnalyzer("PixDigisTest",
     phase1 = cms.untracked.bool(False),
 # sim in V7
 #    src = cms.InputTag("mix"),
-# old default
-    src = cms.InputTag("siPixelDigis"),
+# MC after raw->digi
+    src = cms.InputTag("simSiPixelDigis"),
+#    src = cms.InputTag("siPixelDigis"),
 )
 
 process.p = cms.Path(process.a)

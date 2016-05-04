@@ -117,8 +117,8 @@ class PixClusterTest : public edm::EDAnalyzer {
     *hsizex1,*hsizex2,*hsizex3,*hsizex4,*hsizex5,*hsizex6,*hsizex7,
     *hsizey1,*hsizey2,*hsizey3,*hsizey4,*hsizey5,*hsizey6,*hsizey7;
 
-  TH1F *hcols1,*hcols2,*hcols3,*hcols4,*hrows1,*hrows2,*hrows3,*hrows4;
-  TH1F *hpcols1,*hpcols2,*hpcols3,*hpcols4,*hprows1,*hprows2,*hprows3,*hprows4;
+  TH1F *hy1,*hy2,*hy3,*hy4,*hy5,*hy6,*hy7,*hx1,*hx2,*hx3,*hx4,*hx5,*hx6,*hx7;
+  TH1F *hpy1,*hpy2,*hpy3,*hpy4,*hpx1,*hpx2,*hpx3,*hpx4;
 
   TH1F *hclusPerDet1,*hclusPerDet2,*hclusPerDet3,*hclusPerDet4;
   TH1F *hpixPerDet1, *hpixPerDet2, *hpixPerDet3, *hpixPerDet4;
@@ -133,7 +133,10 @@ class PixClusterTest : public edm::EDAnalyzer {
   TH2F *hpDetMap1,   *hpDetMap2,   *hpDetMap3,   *hpDetMap4;
   TH2F *hpixDetMap1, *hpixDetMap2, *hpixDetMap3, *hpixDetMap4;
   TH2F *hcluDetMap1, *hcluDetMap2, *hcluDetMap3, *hcluDetMap4;
-  
+
+  TH2F *hxy, *hphiz1, *hphiz2, *hphiz3, *hphiz4; // bpix 
+  TH2F *hzr, *hxy11, *hxy12, *hxy21, *hxy22, *hxy31, *hxy32;  // fpix 
+
   TH1F *hevent, *horbit, *hlumi, *hlumi0, *hlumi1; 
   TH1F *hbx, *hbx0, *hbx1;
   TH1F *hdets, *hmbits1,*hmbits2,*hmbits3, *hmaxPixPerDet;
@@ -302,25 +305,31 @@ void PixClusterTest::beginJob() {
   hpixcharge6 = fs->make<TH1F>( "hpixcharge6", "Pix charge d2",sizeH, 0.,highH);
   hpixcharge7 = fs->make<TH1F>( "hpixcharge7", "Pix charge d3",sizeH, 0.,highH);
   
-  hcols1 = fs->make<TH1F>( "hcols1", "Layer 1 cols", 500,-0.5,499.5);
-  hcols2 = fs->make<TH1F>( "hcols2", "Layer 2 cols", 500,-0.5,499.5);
-  hcols3 = fs->make<TH1F>( "hcols3", "Layer 3 cols", 500,-0.5,499.5);
-  hcols4 = fs->make<TH1F>( "hcols4", "Layer 4 cols", 500,-0.5,499.5);
+  hy1 = fs->make<TH1F>( "hy1", "Layer 1 y pos", 500,-0.5,499.5);
+  hy2 = fs->make<TH1F>( "hy2", "Layer 2 y pos", 500,-0.5,499.5);
+  hy3 = fs->make<TH1F>( "hy3", "Layer 3 y pos", 500,-0.5,499.5);
+  hy4 = fs->make<TH1F>( "hy4", "Layer 4 y pos", 500,-0.5,499.5);
+  hy5 = fs->make<TH1F>( "hy5", "Disk 1 y pos", 500,-0.5,499.5);
+  hy6 = fs->make<TH1F>( "hy6", "Disk 2 y pos", 500,-0.5,499.5);
+  hy7 = fs->make<TH1F>( "hy7", "Disk 3 y pos", 500,-0.5,499.5);
   
-  hrows1 = fs->make<TH1F>( "hrows1", "Layer 1 rows", 200,-0.5,199.5);
-  hrows2 = fs->make<TH1F>( "hrows2", "Layer 2 rows", 200,-0.5,199.5);
-  hrows3 = fs->make<TH1F>( "hrows3", "layer 3 rows", 200,-0.5,199.5);
-  hrows4 = fs->make<TH1F>( "hrows4", "layer 4 rows", 200,-0.5,199.5);
+  hx1 = fs->make<TH1F>( "hx1", "Layer 1 x pos", 200,-0.5,199.5);
+  hx2 = fs->make<TH1F>( "hx2", "Layer 2 x pos", 200,-0.5,199.5);
+  hx3 = fs->make<TH1F>( "hx3", "Layer 3 x pos", 200,-0.5,199.5);
+  hx4 = fs->make<TH1F>( "hx4", "Layer 4 x pos", 200,-0.5,199.5);
+  hx5 = fs->make<TH1F>( "hx5", "Disk 1 x pos", 200,-0.5,199.5);
+  hx6 = fs->make<TH1F>( "hx6", "Disk 2 x pos", 200,-0.5,199.5);
+  hx7 = fs->make<TH1F>( "hx7", "Disk 3 x pos", 200,-0.5,199.5);
 
-  hpcols1 = fs->make<TH1F>( "hpcols1", "Layer 1 pix cols", 500,-0.5,499.5);
-  hpcols2 = fs->make<TH1F>( "hpcols2", "Layer 2 pix cols", 500,-0.5,499.5);
-  hpcols3 = fs->make<TH1F>( "hpcols3", "Layer 3 pix cols", 500,-0.5,499.5);
-  hpcols4 = fs->make<TH1F>( "hpcols4", "Layer 4 pix cols", 500,-0.5,499.5);
+  hpy1 = fs->make<TH1F>( "hpy1", "Layer 1 pix cols", 500,-0.5,499.5);
+  hpy2 = fs->make<TH1F>( "hpy2", "Layer 2 pix cols", 500,-0.5,499.5);
+  hpy3 = fs->make<TH1F>( "hpy3", "Layer 3 pix cols", 500,-0.5,499.5);
+  hpy4 = fs->make<TH1F>( "hpy4", "Layer 4 pix cols", 500,-0.5,499.5);
   
-  hprows1 = fs->make<TH1F>( "hprows1", "Layer 1 pix rows", 200,-0.5,199.5);
-  hprows2 = fs->make<TH1F>( "hprows2", "Layer 2 pix rows", 200,-0.5,199.5);
-  hprows3 = fs->make<TH1F>( "hprows3", "layer 3 pix rows", 200,-0.5,199.5);
-  hprows4 = fs->make<TH1F>( "hprows4", "layer 4 pix rows", 200,-0.5,199.5);
+  hpx1 = fs->make<TH1F>( "hpx1", "Layer 1 pix rows", 200,-0.5,199.5);
+  hpx2 = fs->make<TH1F>( "hpx2", "Layer 2 pix rows", 200,-0.5,199.5);
+  hpx3 = fs->make<TH1F>( "hpx3", "layer 3 pix rows", 200,-0.5,199.5);
+  hpx4 = fs->make<TH1F>( "hpx4", "layer 4 pix rows", 200,-0.5,199.5);
 
   sizeH=1000;
   highH = 999.5; // charge limit in kelec
@@ -408,6 +417,20 @@ void PixClusterTest::beginJob() {
   hcluDetMap4 = fs->make<TH2F>( "hcluDetMap4", "clu det layer 4",
 				416,0.,416.,160,0.,160.);
 
+  hzr = fs->make<TH2F>("hzr"," ",240,-60.,60.,68,0.,17.);  // x-y plane
+  hxy11 = fs->make<TH2F>("hxy11"," ",320,-16.,16.,320,-16.,16.); // x-y pla 
+  hxy12 = fs->make<TH2F>("hxy12"," ",320,-16.,16.,320,-16.,16.); // x-y pla
+  hxy21 = fs->make<TH2F>("hxy21"," ",320,-16.,16.,320,-16.,16.); // x-y pl
+  hxy22 = fs->make<TH2F>("hxy22"," ",320,-16.,16.,320,-16.,16.); // x-y pla
+  hxy31 = fs->make<TH2F>("hxy31"," ",320,-16.,16.,320,-16.,16.); // x-y pla
+  hxy32 = fs->make<TH2F>("hxy32"," ",320,-16.,16.,320,-16.,16.); // x-y plae
+
+  hxy = fs->make<TH2F>("hxy"," ",340,-17.,17.,340,-17.,17.);  // x-y plane
+  hphiz1 = fs->make<TH2F>("hphiz1"," ",108,-27.,27.,140,-3.5,3.5);
+  hphiz2 = fs->make<TH2F>("hphiz2"," ",108,-27.,27.,140,-3.5,3.5);
+  hphiz3 = fs->make<TH2F>("hphiz3"," ",108,-27.,27.,140,-3.5,3.5);
+  hphiz4 = fs->make<TH2F>("hphiz4"," ",108,-27.,27.,140,-3.5,3.5);
+
   htest = fs->make<TH1F>( "htest", "FPix R", 400, -20., 20.);
 
 #endif
@@ -439,10 +462,9 @@ void PixClusterTest::analyze(const edm::Event& e,
 #ifdef NEW_ID
   //Retrieve tracker topology from geometry
   edm::ESHandle<TrackerTopology> tTopoH;
-  es.get<IdealGeometryRecord>().get(tTopoH);
+  es.get<TrackerTopologyRcd>().get(tTopoH);
   const TrackerTopology *tTopo=tTopoH.product();
 #endif
-
 
   countAllEvents++;
   int run       = e.id().run();
@@ -565,8 +587,12 @@ void PixClusterTest::analyze(const edm::Event& e,
     // Get the geom-detector
     const PixelGeomDetUnit * theGeomDet =
       dynamic_cast<const PixelGeomDetUnit*> (theTracker.idToDet(detId) );
-    //double detZ = theGeomDet->surface().position().z();
+
+    double detX = theGeomDet->surface().position().x();
+    double detY = theGeomDet->surface().position().y();
+    double detZ = theGeomDet->surface().position().z();
     double detR = theGeomDet->surface().position().perp();
+    double detPhi = theGeomDet->surface().position().phi();
 
     //const BoundPlane& plane = theGeomDet->surface(); //for transf.
     
@@ -753,8 +779,8 @@ void PixClusterTest::analyze(const edm::Event& e,
 	    hpDetMap1->Fill(float(module),float(ladder));
 	    module1[int(pixx)][int(pixy)]++;
 	    
-	    hpcols1->Fill(pixy);
-	    hprows1->Fill(pixx);
+	    hpy1->Fill(pixy);
+	    hpx1->Fill(pixx);
 
 	    if(pixx<80.) numOfPixPerLink11++;
 	    else numOfPixPerLink12++;
@@ -765,8 +791,8 @@ void PixClusterTest::analyze(const edm::Event& e,
 	    numOfPixPerDet2++;
 	    numOfPixPerLay2++;   
 	    
-	    hpcols2->Fill(pixy);
-	    hprows2->Fill(pixx);
+	    hpy2->Fill(pixy);
+	    hpx2->Fill(pixx);
 
 	    if(pixx<80.) numOfPixPerLink21++;
 	    else numOfPixPerLink22++;
@@ -786,8 +812,8 @@ void PixClusterTest::analyze(const edm::Event& e,
 	    hpDetMap3->Fill(float(module),float(ladder));
 	    module3[int(pixx)][int(pixy)]++;
 	    
-	    hpcols3->Fill(pixy);
-	    hprows3->Fill(pixx);
+	    hpy3->Fill(pixy);
+	    hpx3->Fill(pixx);
 
 	  } else if(layer==4) {
 
@@ -799,8 +825,8 @@ void PixClusterTest::analyze(const edm::Event& e,
 	    hpDetMap4->Fill(float(module),float(ladder));
 	    module4[int(pixx)][int(pixy)]++;
 	    
-	    hpcols4->Fill(pixy);
-	    hprows4->Fill(pixx);
+	    hpy4->Fill(pixy);
+	    hpx4->Fill(pixx);
 
 	  }  // if layer
 
@@ -882,8 +908,8 @@ void PixClusterTest::analyze(const edm::Event& e,
 	  hDetMap1->Fill(float(module),float(ladder));
 	  hcluDetMap1->Fill(y,x);
 	  hcharge1->Fill(ch);
-	  hcols1->Fill(y);
-	  hrows1->Fill(x);
+	  hy1->Fill(y);
+	  hx1->Fill(x);
 	  hsize1->Fill(float(size));
 	  hsizex1->Fill(float(sizeX));
 	  hsizey1->Fill(float(sizeY));
@@ -897,8 +923,8 @@ void PixClusterTest::analyze(const edm::Event& e,
 	  hDetMap2->Fill(float(module),float(ladder));
 	  hcluDetMap2->Fill(y,x);
 	  hcharge2->Fill(ch);
-	  hcols2->Fill(y);
-	  hrows2->Fill(x);
+	  hy2->Fill(y);
+	  hx2->Fill(x);
 	  hsize2->Fill(float(size));
 	  hsizex2->Fill(float(sizeX));
 	  hsizey2->Fill(float(sizeY));
@@ -912,8 +938,8 @@ void PixClusterTest::analyze(const edm::Event& e,
 	  hDetMap3->Fill(float(module),float(ladder));
 	  hcluDetMap3->Fill(y,x);
 	  hcharge3->Fill(ch);
-	  hcols3->Fill(y);
-	  hrows3->Fill(x);
+	  hy3->Fill(y);
+	  hx3->Fill(x);
 	  hsize3->Fill(float(size));
 	  hsizex3->Fill(float(sizeX));
 	  hsizey3->Fill(float(sizeY));
@@ -927,8 +953,8 @@ void PixClusterTest::analyze(const edm::Event& e,
 	  hDetMap4->Fill(float(module),float(ladder));
 	  hcluDetMap4->Fill(y,x);
 	  hcharge4->Fill(ch);
-	  hcols4->Fill(y);
-	  hrows4->Fill(x);
+	  hy4->Fill(y);
+	  hx4->Fill(x);
 	  hsize4->Fill(float(size));
 	  hsizex4->Fill(float(sizeX));
 	  hsizey4->Fill(float(sizeY));
@@ -952,6 +978,8 @@ void PixClusterTest::analyze(const edm::Event& e,
 	  hsize5->Fill(float(size));
 	  hsizex5->Fill(float(sizeX));
 	  hsizey5->Fill(float(sizeY));
+	  hy5->Fill(y);
+	  hx5->Fill(x);
 
 	} else if(disk==2) { // disk2 -+z
 
@@ -964,6 +992,8 @@ void PixClusterTest::analyze(const edm::Event& e,
 	  hsize6->Fill(float(size));
 	  hsizex6->Fill(float(sizeX));
 	  hsizey6->Fill(float(sizeY));
+	  hy6->Fill(y);
+	  hx6->Fill(x);
 
 	} else if(disk==3) { // disk3 -+z
 
@@ -976,6 +1006,8 @@ void PixClusterTest::analyze(const edm::Event& e,
 	  hsize7->Fill(float(size));
 	  hsizex7->Fill(float(sizeX));
 	  hsizey7->Fill(float(sizeY));
+	  hy7->Fill(y);
+	  hx7->Fill(x);
 
 	} else cout<<" unknown disk "<<disk<<endl; // end fpix disk 
 
@@ -1005,6 +1037,8 @@ void PixClusterTest::analyze(const edm::Event& e,
 #ifdef HISTOS
     if (subid==1 ) {  // barrel
 
+      hxy->Fill(detX,detY);
+
       // Det histos
       if(layer==1) {
 	
@@ -1021,6 +1055,7 @@ void PixClusterTest::analyze(const edm::Event& e,
 	hpixPerLink1->Fill(float(numOfPixPerLink12));
 	numOfPixPerLink11=0;        
 	numOfPixPerLink12=0;        
+	hphiz1->Fill(detZ,detPhi);
 
       } else if(layer==2) {
 
@@ -1036,6 +1071,7 @@ void PixClusterTest::analyze(const edm::Event& e,
 	hpixPerLink2->Fill(float(numOfPixPerLink22));
 	numOfPixPerLink21=0;        
 	numOfPixPerLink22=0;        
+	hphiz2->Fill(detZ,detPhi);
 
       } else if(layer==3) {
 
@@ -1046,7 +1082,9 @@ void PixClusterTest::analyze(const edm::Event& e,
 	hpixPerDet3->Fill(float(numOfPixPerDet3));
 	if(numOfPixPerDet3>maxPixPerDet) maxPixPerDet = numOfPixPerDet3;  
 	numOfClustersPerDet3=0;
-	numOfPixPerDet3=0;        
+	numOfPixPerDet3=0;
+	hphiz3->Fill(detZ,detPhi);
+        
 	//SK:unused	numOfPixPerLink3=0;        
 
       } else if(layer==4) {
@@ -1059,9 +1097,25 @@ void PixClusterTest::analyze(const edm::Event& e,
 	if(numOfPixPerDet4>maxPixPerDet) maxPixPerDet = numOfPixPerDet4;  
 	numOfClustersPerDet4=0;
 	numOfPixPerDet4=0;        
+	hphiz4->Fill(detZ,detPhi);
 
       } // layer
-      
+
+    } else { // fpix
+
+      hzr->Fill(detZ,detR);
+
+      if(disk==1) { // disk1 -+z	
+	if(side==1)      hxy11->Fill(detX,detY);      // d1,-z
+	else if(side==2) hxy12->Fill(detX,detY); // d1, +z
+      } else if(disk==2) { // disk2 -+z	
+	if(side==1)      hxy21->Fill(detX,detY);      // d1,-z
+	else if(side==2) hxy22->Fill(detX,detY); // d1, +z
+      } else if(disk==3) { // disk3 -+z	
+	if(side==1)      hxy31->Fill(detX,detY);      // d1,-z
+	else if(side==2) hxy32->Fill(detX,detY); // d1, +z
+      }      
+
     } // end barrel/forward
 
 #endif // HISTOS

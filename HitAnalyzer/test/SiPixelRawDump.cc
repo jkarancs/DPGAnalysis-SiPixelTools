@@ -4,6 +4,7 @@
  *  Added class to interpret the data d.k. 30/10/08
  *  Add histograms. Add pix 0 detection.
  * Works with v7x, comment out the digis access.
+ * Adopted for Phase1, not commited yet. Need to port to 8X
  */
 
 #include "FWCore/Framework/interface/EDAnalyzer.h"
@@ -56,6 +57,7 @@ using namespace std;
 
 // #define L1  // L1 information not in RAW
 //#define OUTFILE 
+//#define PHASE1
 
 namespace {
   bool printErrors  = false;
@@ -66,6 +68,17 @@ namespace {
   // to store the previous pixel 
   int fed0 = -1, chan0 = -1, roc0 = -1, dcol0 = -1, pix0 =-1, count0=-1;
   int countDecodeErrors1=0, countDecodeErrors2=0;
+#ifdef PHASE1
+  const int n_of_FEDs = 56;
+  const int n_of_Channels = 96;
+  const int fedIdBpixMax = 40;
+  const bool phase1 = true;
+#else
+  const int n_of_FEDs = 41;
+  const int n_of_Channels = 36;
+  const int fedIdBpixMax = 32;
+  const bool phase1 = false;
+#endif
 }
 
 // Include the helper decoding class
@@ -341,8 +354,13 @@ int MyDecode::error(int word, int & fedChannel, int fed, int & stat1, int & stat
     }
 
   } else {
-    cout<<" Unknown error?"<<" : ";
-    cout<<" for FED "<<fed<<" Word "<<hex<<word<<dec<<endl;
+    if( (word == 0) && phase1 ) { 
+      // for phase1 simulations there are sometimes 0 words (fillers?)  
+      status = 0; // report OK 
+    } else {
+      cout<<" Unknown error?"<<" : ";
+      cout<<" for FED "<<fed<<" Word "<<hex<<word<<dec<<endl;
+    }
   }
 
   if(print && status <0) cout<<" FED "<<fed<<" status "<<status<<endl;
@@ -355,17 +373,27 @@ int MyDecode::data(int word, int & fedChannel, int fed, int & stat1, int & stat2
   const unsigned int plsmsk = 0xff;   // pulse height
   const unsigned int pxlmsk = 0xff00; // pixel index
   const unsigned int dclmsk = 0x1f0000;
-  const unsigned int rocmsk = 0x3e00000;
-  const unsigned int chnlmsk = 0xfc000000;
+#ifdef PHASE1
+  const unsigned int rocmsk  =  0x1e00000;  // 4 bits 
+  const unsigned int chnlmsk = 0xfe000000; // 7 bits 
+  const unsigned int rocshift = 21;
+  const unsigned int linkshift = 25;
+#else
+  const unsigned int rocmsk =   0x3e00000;   // 5 bits
+  const unsigned int chnlmsk = 0xfc000000; // 6 bits 
+  const unsigned int rocshift = 21;
+  const unsigned int linkshift = 26;
+#endif
+
   int status = 0;
 
-  roc_ = ((word&rocmsk)>>21); // rocs start from 1
+  roc_ = ((word&rocmsk)>>rocshift); // rocs start from 1
   // Check for embeded special words
   if(roc_>0 && roc_<25) {  // valid ROCs go from 1-24
     //if(print) cout<<"data "<<hex<<word<<dec;
-    channel_ = ((word&chnlmsk)>>26);
+    channel_ = ((word&chnlmsk)>>linkshift);
 
-    if(channel_>0 && channel_<37) {  // valid channels 1-36
+    if(channel_>0 && channel_ <= n_of_Channels) {  // valid channels 1-36
       //cout<<hex<<word<<dec;
       dcol_=(word&dclmsk)>>16;
       pix_=(word&pxlmsk)>>8;
@@ -382,22 +410,20 @@ int MyDecode::data(int word, int & fedChannel, int fed, int & stat1, int & stat2
 
       if(CHECK_PIXELS) {
 
-	// invalid roc number
-	if( (fed>31 && roc_>24) || (fed<=31 && roc_>16)  ) {  //inv ROC
+	// Check invalid ROC numbers
+	if( ((fed>31) && (roc_>24)) || ((fed<=31) && (roc_>16))  ) {  //inv ROC
           //if(printErrors) 
 	  cout<<" Fed "<<fed<<" wrong roc number chan/roc/dcol/pix/adc = "<<channel_<<"/"
 			      <<roc_-1<<"/"<<dcol_<<"/"<<pix_<<"/"<<adc_<<endl;
 	  status = -4;
 
 	 
-	} else if( fed<=31 && channel_<=24 && roc_>8 ) {
-	  // Check invalid ROC numbers
-
 	  // protect for rerouted signals
-	  if( !( (fed==13 && channel_==17) ||(fed==15 && channel_==5) ||(fed==31 && channel_==10) 
-		                          ||(fed==27 && channel_==15) )  ) {
+	} else if( fed<=31 && channel_<=24 && roc_>8 ) {
+	  if( !( (fed==6 && channel_==1) ||(fed==9 && channel_==16) ||(fed==23 && channel_==15)
+		 || (fed==31 && channel_==10) ||(fed==27 && channel_==15) )  ) {
 	    //if(printErrors) 
-	    cout<<" Fed "<<fed<<" wrong roc number, chan/roc/dcol/pix/adc = "<<channel_<<"/"
+	    cout<<" Fed "<<fed<<" wrong channel number, chan/roc/dcol/pix/adc = "<<channel_<<"/"
 				<<roc_-1<<"/"<<dcol_<<"/"<<pix_<<"/"<<adc_<<endl;
 	    status = -4;
 	  }
@@ -464,8 +490,8 @@ int MyDecode::data(int word, int & fedChannel, int fed, int & stat1, int & stat2
 
     } else { // channel
 
-      cout<<" Wrong channel "<<channel_<<" : ";
-      cout<<" for FED "<<fed<<" Word "<<hex<<word<<dec<<endl;
+      cout<<" Wrong channel "<<channel_<<" : "
+	  <<" for FED "<<fed<<" Word "<<hex<<word<<dec<<endl;
       return -2;
 
     }
@@ -516,14 +542,14 @@ private:
   double printThreshold;
   int countEvents, countAllEvents;
   int countTotErrors;
-  float sumPixels, sumFedSize, sumFedPixels[40];
-  int fedErrors[40][36];
-  int fedErrorsENE[40][36];
-  int fedErrorsTime[40][36];
-  int fedErrorsOver[40][36];
-  int decodeErrors[40][36];
-  int decodeErrors000[40][36];  // pix 0 problem
-  int decodeErrorsDouble[40][36];  // double pix  problem
+  float sumPixels, sumFedSize, sumFedPixels[n_of_FEDs];
+  int fedErrors[n_of_FEDs][n_of_Channels];
+  int fedErrorsENE[n_of_FEDs][n_of_Channels];
+  int fedErrorsTime[n_of_FEDs][n_of_Channels];
+  int fedErrorsOver[n_of_FEDs][n_of_Channels];
+  int decodeErrors[n_of_FEDs][n_of_Channels];
+  int decodeErrors000[n_of_FEDs][n_of_Channels];  // pix 0 problem
+  int decodeErrorsDouble[n_of_FEDs][n_of_Channels];  // double pix  problem
   int errorType[20];
 
 #ifdef OUTFILE
@@ -532,10 +558,10 @@ private:
 
   TH1D *hsize,*hsize0, *hsize1, *hsize2, *hsize3;
 #ifdef IND_FEDS
-  TH1D *hsizeFeds[40];
+  TH1D *hsizeFeds[n_of_FEDs];
 #endif
   TH1D *hpixels, *hpixels0, *hpixels1, *hpixels2, *hpixels3, *hpixels4;
-  TH1D *htotPixels,*htotPixels0, *htotPixels1;
+  TH1D *htotPixels,*htotPixels0, *htotPixels1, *htotPixels2;
   TH1D *herrors, *htotErrors;
   TH1D *herrorType1, *herrorType1Fed, *herrorType1Chan,*herrorType2, *herrorType2Fed, *herrorType2Chan;
   TH1D *hcountDouble, *hcount000, *hrocDouble, *hroc000;
@@ -549,7 +575,7 @@ private:
     *hfed2DErrors6ls,*hfed2DErrors7ls,*hfed2DErrors8ls,*hfed2DErrors9ls,*hfed2DErrors10ls,*hfed2DErrors11ls,*hfed2DErrors12ls,
     *hfed2DErrors13ls,*hfed2DErrors14ls,*hfed2DErrors15ls,*hfed2DErrors16ls;
 
-  TH1D *hevent, *hlumi, *horbit, *hbx, *hlumi0, *hbx0, *hbx1;
+  TH1D *hevent, *hlumi, *horbit, *hbx, *hlumi0, *hbx0, *hbx1, *hbx2;
   //TH1D *hbx2,*hbx3,*hbx4,*hbx5,*hbx6,*hbx7,*hbx8,*hbx9,*hbx10,*hbx11,*hbx12; 
   TProfile *htotPixelsls, *hsizels, *herrorType1ls, *herrorType2ls, *havsizels, *htotPixelsbx, 
     *herrorType1bx,*herrorType2bx,*havsizebx,*hsizep;
@@ -590,36 +616,37 @@ void SiPixelRawDump::endJob() {
   // 16 - fifo  (30)
   // 17 - reset/resync NOT INCLUDED YET
 
+  double tmp = sumPixels;
   if(countEvents>0) {
     sumPixels /= float(countEvents);
     sumFedSize /= float(countAllEvents);
-    for(int i=0;i<40;++i) {
+    for(int i = 0; i < n_of_FEDs; ++i) {
       sumFedPixels[i] /= float(countEvents);
       hpixels4->Fill(float(i),sumFedPixels[i]); //pixels only 
     }
   }
     
-  cout<<" Total/non-empty events " <<countAllEvents<<" / "<<countEvents<<" average number of pixels "<<sumPixels<<endl;
+  cout<<" Total/non-empty events " <<countAllEvents<<" / "<<countEvents<<" average number of pixels "<<sumPixels<<" ("<<tmp<<")"<<endl;
 
-  cout<<" Average Fed size per event for all events (in 4-words) "<< (sumFedSize*2./40.) 
+  cout<<" Average Fed size per event for all events (in 4-words) "<< (sumFedSize*2./static_cast<float>(n_of_FEDs)) 
       <<" total for all feds "<<(sumFedSize*2.) <<endl;
 
   cout<<" Size for ech FED per event in units of hit pixels:" <<endl;
 
-  for(int i=0;i<40;++i) cout<< sumFedPixels[i]<<" ";
+  for(int i = 0; i < n_of_FEDs; ++i) cout<< sumFedPixels[i]<<" ";
   cout<<endl;
 
   cout<<" Total number of errors "<<countTotErrors<<" print threshold "<< int(countEvents*printThreshold) << " total errors per fed channel"<<endl;
   cout<<" FED errors "<<endl<<"Fed Channel Tot-Errors ENE-Errors Time-Errors Over-Errors"<<endl;
 
-  for(int i=0;i<40;++i) {
-    for(int j=0;j<36;++j) if( (fedErrors[i][j]) > int(countEvents*printThreshold) || (fedErrorsENE[i][j] > 0) ) {
+  for(int i = 0; i < n_of_FEDs; ++i) {
+    for(int j=0;j<n_of_Channels;++j) if( (fedErrors[i][j]) > int(countEvents*printThreshold) || (fedErrorsENE[i][j] > 0) ) {
       cout<<" "<<i<<"  -  "<<(j+1)<<" -  "<<fedErrors[i][j]<<" - "<<fedErrorsENE[i][j]<<" -  "<<fedErrorsTime[i][j]<<" - "<<fedErrorsOver[i][j]<<endl;
     }
   }
   cout<<" Decode errors "<<endl<<"Fed Channel Errors Pix_000 Double_Pix"<<endl;
-  for(int i=0;i<40;++i) {
-    for(int j=0;j<36;++j) {
+  for(int i = 0; i < n_of_FEDs; ++i) {
+    for(int j=0;j<n_of_Channels;++j) {
       int tmp = decodeErrors[i][j] + decodeErrors000[i][j] + decodeErrorsDouble[i][j];
       if(tmp>10) 
 	cout<<" "<<i<<" -  "<<(j+1)<<"   -  "
@@ -662,22 +689,22 @@ void SiPixelRawDump::beginJob() {
   countTotErrors=0;
   sumPixels=0.;
   sumFedSize=0;
-  for(int i=0;i<40;++i) {
+  for(int i = 0; i < n_of_FEDs; ++i) {
     sumFedPixels[i]=0;
-    for(int j=0;j<36;++j) {fedErrors[i][j]=0; fedErrorsENE[i][j]=0; fedErrorsTime[i][j]=0; fedErrorsOver[i][j]=0;}
-    for(int j=0;j<36;++j) {decodeErrors[i][j]=0; decodeErrors000[i][j]=0; decodeErrorsDouble[i][j]=0;}
+    for(int j=0;j<n_of_Channels;++j) {fedErrors[i][j]=0; fedErrorsENE[i][j]=0; fedErrorsTime[i][j]=0; fedErrorsOver[i][j]=0;}
+    for(int j=0;j<n_of_Channels;++j) {decodeErrors[i][j]=0; decodeErrors000[i][j]=0; decodeErrorsDouble[i][j]=0;}
   }
   for(int i=0;i<20;++i) errorType[i]=0;
 
   edm::Service<TFileService> fs;
 
-  //const float pixMax = 5999.5;   // pp value 
-  //const float totMax = 99999.5;  // pp value 
-  //const float maxLink = 200.;    // pp value
+  const float pixMax = 5999.5;   // pp value 
+  const float totMax = 99999.5;  // pp value 
+  const float maxLink = 200.;    // pp value
 
-  const float pixMax = 19999.5;  // hi value 
-  const float totMax = 399999.5; // hi value 
-  const float maxLink = 1000.;   // hi value
+  //const float pixMax = 19999.5;  // hi value 
+  //const float totMax = 399999.5; // hi value 
+  //const float maxLink = 1000.;   // hi value
 
 
   hsize = fs->make<TH1D>( "hsize", "FED event size in words-4", 6000, -0.5, pixMax);
@@ -691,33 +718,35 @@ void SiPixelRawDump::beginJob() {
   hpixels1 = fs->make<TH1D>( "hpixels1", "pixels >0 per FED", 6000, -0.5, pixMax);
   hpixels2 = fs->make<TH1D>( "hpixels2", "pixels >0 per BPix FED", 6000, -0.5, pixMax);
   hpixels3 = fs->make<TH1D>( "hpixels3", "pixels >0 per Fpix FED", 6000, -0.5, pixMax);
-  hpixels4 = fs->make<TH1D>( "hpixels4", "pixels per each FED", 40, -0.5, 39.5);
+  hpixels4 = fs->make<TH1D>( "hpixels4", "pixels per each FED", n_of_FEDs, -0.5, static_cast<float>(n_of_FEDs) - 0.5);
 
   htotPixels = fs->make<TH1D>( "htotPixels", "pixels per event", 10000, -0.5, totMax);
   htotPixels0 = fs->make<TH1D>( "htotPixels0", "pixels per event, zoom low region", 20000, -0.5, 19999.5);
   htotPixels1 = fs->make<TH1D>( "htotPixels1", "pixels >0 per event", 10000, -0.5, totMax);
+  htotPixels2 = fs->make<TH1D>( "htotPixels2", "pixels per event for wrong BX", 10000, -0.5, totMax);
 
   herrors = fs->make<TH1D>( "herrors", "errors per FED", 100, -0.5, 99.5);
   htotErrors = fs->make<TH1D>( "htotErrors", "errors per event", 1000, -0.5, 999.5);
 
+  const float maxChan = static_cast<float>(n_of_Channels) - 0.5;
   herrorType1     = fs->make<TH1D>( "herrorType1", "errors 1 per type", 20, -0.5, 19.5);
-  herrorType1Fed  = fs->make<TH1D>( "herrorType1Fed", "errors 1 per FED", 40, -0.5, 39.5);
-  herrorType1Chan = fs->make<TH1D>( "herrorType1Chan", "errors 1 per chan", 37, -0.5, 36.5);
+  herrorType1Fed  = fs->make<TH1D>( "herrorType1Fed", "errors 1 per FED", n_of_FEDs, -0.5, static_cast<float>(n_of_FEDs) - 0.5);
+  herrorType1Chan = fs->make<TH1D>( "herrorType1Chan", "errors 1 per chan", n_of_Channels, -0.5,maxChan);
   herrorType2     = fs->make<TH1D>( "herrorType2", "readout errors 2 per type", 20, -0.5, 19.5);
-  herrorType2Fed  = fs->make<TH1D>( "herrorType2Fed", "readout errors 2 per FED", 40, -0.5, 39.5);
-  herrorType2Chan = fs->make<TH1D>( "herrorType2Chan", "readout errors 2 per chan", 37, -0.5, 36.5);
+  herrorType2Fed  = fs->make<TH1D>( "herrorType2Fed", "readout errors 2 per FED", n_of_FEDs, -0.5, static_cast<float>(n_of_FEDs) - 0.5);
+  herrorType2Chan = fs->make<TH1D>( "herrorType2Chan", "readout errors 2 per chan", n_of_Channels, -0.5,maxChan);
 
   hcountDouble = fs->make<TH1D>( "hcountDouble", "count double pixels", 100, -0.5, 99.5);
-  hcountDouble2 = fs->make<TH2F>("hcountDouble2","count double pixels",40,-0.5,39.5, 10,0.,10.); 
+  hcountDouble2 = fs->make<TH2F>("hcountDouble2","count double pixels",n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5, 10,0.,10.); 
   hcount000 = fs->make<TH1D>( "hcount000", "count 000 pixels", 100, -0.5, 99.5);
-  hcount0002 = fs->make<TH2F>("hcount0002","count 000 pixels",40,-0.5,39.5, 10,0.,10.); 
+  hcount0002 = fs->make<TH2F>("hcount0002","count 000 pixels",n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5, 10,0.,10.); 
   hrocDouble = fs->make<TH1D>( "hrocDouble", "double pixels rocs", 25,-0.5, 24.5);
   hroc000    = fs->make<TH1D>( "hroc000", "000 pixels rocs", 25,-0.5, 24.5);
 
-  hfed2d = fs->make<TH2F>( "hfed2d", "errors", 40,-0.5,39.5,21, -0.5, 20.5); // ALL
+  hfed2d = fs->make<TH2F>( "hfed2d", "errors", n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5,21, -0.5, 20.5); // ALL
 
-  hsize2d = fs->make<TH2F>( "hsize2d", "size vs fed",40,-0.5,39.5, 50,0,500); // ALL
-  hsizep  = fs->make<TProfile>( "hsizep", "size vs fed",40,-0.5,39.5,0,100000); // ALL
+  hsize2d = fs->make<TH2F>( "hsize2d", "size vs fed",n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5, 50,0,500); // ALL
+  hsizep  = fs->make<TProfile>( "hsizep", "size vs fed",n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5,0,100000); // ALL
   //hsize2dls = fs->make<TH2F>( "hsize2dls", "size vs lumi",100,0,1000, 50,0.,500.); // ALL
 
 #ifdef IND_FEDS
@@ -768,9 +797,10 @@ void SiPixelRawDump::beginJob() {
   hlumi  = fs->make<TH1D>("hlumi", "lumi", 3000,0,3000.);
   hlumi0  = fs->make<TH1D>("hlumi0", "lumi", 3000,0,3000.);
  
-  hbx    = fs->make<TH1D>("hbx",   "bx all",   4000,0,4000.);  
-  hbx0    = fs->make<TH1D>("hbx0",   "bx with hits",   4000,0,4000.);  
+  hbx    = fs->make<TH1D>("hbx",   "bx with hits",   4000,0,4000.);  
+  hbx0    = fs->make<TH1D>("hbx0",   "bx all",   4000,0,4000.);  
   hbx1    = fs->make<TH1D>("hbx1",   "bx pixels",   4000,0,4000.);  
+  hbx2    = fs->make<TH1D>("hbx2",   "bad bx",   4000,0,4000.);  
 
 //   hbx2    = fs->make<TH1D>("hbx2",   "bx",   4000,0,4000.);  
 //   hbx3    = fs->make<TH1D>("hbx3",   "bx",   4000,0,4000.);  
@@ -795,46 +825,46 @@ void SiPixelRawDump::beginJob() {
   herrorTimels0 = fs->make<TH1D>("herrorTimels0","timeouts vs ls", 1000,0,3000);
   herrorOverls0 = fs->make<TH1D>("herrorOverls0","overflows vs ls",1000,0,3000);
 
-  hfed2DErrorsType1 = fs->make<TH2F>("hfed2DErrorsType1", "errors type 1 per FED", 40,-0.5,39.5,37, -0.5, 36.5);
-  hfed2DErrorsType2 = fs->make<TH2F>("hfed2DErrorsType2", "errors type 2 per FED", 40,-0.5,39.5,37, -0.5, 36.5);
+  hfed2DErrorsType1 = fs->make<TH2F>("hfed2DErrorsType1", "errors type 1 per FED", n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5, n_of_Channels, -0.5,maxChan);
+  hfed2DErrorsType2 = fs->make<TH2F>("hfed2DErrorsType2", "errors type 2 per FED", n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5, n_of_Channels, -0.5,maxChan);
 
-  hfed2DErrors1 = fs->make<TH2F>("hfed2DErrors1", "errors per FED", 40,-0.5,39.5,37, -0.5, 36.5);
-  //hfed2DErrors2 = fs->make<TH2F>("hfed2DErrors2", "errors per FED", 40,-0.5,39.5,37, -0.5, 36.5);
-  hfed2DErrors3 = fs->make<TH2F>("hfed2DErrors3", "errors per FED", 40,-0.5,39.5,37, -0.5, 36.5);
-  hfed2DErrors4 = fs->make<TH2F>("hfed2DErrors4", "errors per FED", 40,-0.5,39.5,37, -0.5, 36.5);
-  hfed2DErrors5 = fs->make<TH2F>("hfed2DErrors5", "errors per FED", 40,-0.5,39.5,37, -0.5, 36.5);
-  hfed2DErrors6 = fs->make<TH2F>("hfed2DErrors6", "errors per FED", 40,-0.5,39.5,37, -0.5, 36.5);
-  //hfed2DErrors7 = fs->make<TH2F>("hfed2DErrors7", "errors per FED", 40,-0.5,39.5,37, -0.5, 36.5);
-  //hfed2DErrors8 = fs->make<TH2F>("hfed2DErrors8", "errors per FED", 40,-0.5,39.5,37, -0.5, 36.5);
-  //hfed2DErrors9 = fs->make<TH2F>("hfed2DErrors9", "errors per FED", 40,-0.5,39.5,37, -0.5, 36.5);
-  hfed2DErrors10 = fs->make<TH2F>("hfed2DErrors10", "errors per FED", 40,-0.5,39.5,37, -0.5, 36.5);
-  hfed2DErrors11 = fs->make<TH2F>("hfed2DErrors11", "errors per FED", 40,-0.5,39.5,37, -0.5, 36.5);
-  hfed2DErrors12 = fs->make<TH2F>("hfed2DErrors12", "errors per FED", 40,-0.5,39.5,37, -0.5, 36.5);
-  hfed2DErrors13 = fs->make<TH2F>("hfed2DErrors13", "errors per FED", 40,-0.5,39.5,37, -0.5, 36.5);
-  hfed2DErrors14 = fs->make<TH2F>("hfed2DErrors14", "errors per FED", 40,-0.5,39.5,37, -0.5, 36.5);
-  hfed2DErrors15 = fs->make<TH2F>("hfed2DErrors15", "errors per FED", 40,-0.5,39.5,37, -0.5, 36.5);
-  hfed2DErrors16 = fs->make<TH2F>("hfed2DErrors16", "errors per FED", 40,-0.5,39.5,37, -0.5, 36.5);
+  hfed2DErrors1 = fs->make<TH2F>("hfed2DErrors1", "errors per FED", n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5, n_of_Channels, -0.5,maxChan);
+  //hfed2DErrors2 = fs->make<TH2F>("hfed2DErrors2", "errors per FED", n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5, n_of_Channels, -0.5,maxChan);
+  hfed2DErrors3 = fs->make<TH2F>("hfed2DErrors3", "errors per FED", n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5, n_of_Channels, -0.5,maxChan);
+  hfed2DErrors4 = fs->make<TH2F>("hfed2DErrors4", "errors per FED", n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5, n_of_Channels, -0.5,maxChan);
+  hfed2DErrors5 = fs->make<TH2F>("hfed2DErrors5", "errors per FED", n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5, n_of_Channels, -0.5,maxChan);
+  hfed2DErrors6 = fs->make<TH2F>("hfed2DErrors6", "errors per FED", n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5, n_of_Channels, -0.5,maxChan);
+  //hfed2DErrors7 = fs->make<TH2F>("hfed2DErrors7", "errors per FED", n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5, n_of_Channels, -0.5,maxChan);
+  //hfed2DErrors8 = fs->make<TH2F>("hfed2DErrors8", "errors per FED", n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5, n_of_Channels, -0.5,maxChan);
+  //hfed2DErrors9 = fs->make<TH2F>("hfed2DErrors9", "errors per FED", n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5, n_of_Channels, -0.5,maxChan);
+  hfed2DErrors10 = fs->make<TH2F>("hfed2DErrors10", "errors per FED", n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5, n_of_Channels, -0.5,maxChan);
+  hfed2DErrors11 = fs->make<TH2F>("hfed2DErrors11", "errors per FED", n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5, n_of_Channels, -0.5,maxChan);
+  hfed2DErrors12 = fs->make<TH2F>("hfed2DErrors12", "errors per FED", n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5, n_of_Channels, -0.5,maxChan);
+  hfed2DErrors13 = fs->make<TH2F>("hfed2DErrors13", "errors per FED", n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5, n_of_Channels, -0.5,maxChan);
+  hfed2DErrors14 = fs->make<TH2F>("hfed2DErrors14", "errors per FED", n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5, n_of_Channels, -0.5,maxChan);
+  hfed2DErrors15 = fs->make<TH2F>("hfed2DErrors15", "errors per FED", n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5, n_of_Channels, -0.5,maxChan);
+  hfed2DErrors16 = fs->make<TH2F>("hfed2DErrors16", "errors per FED", n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5, n_of_Channels, -0.5,maxChan);
 
 
-  hfedErrorType1ls = fs->make<TH2F>( "hfedErrorType1ls", "errors vs lumi",300,0,3000, 40,-0.5,39.5); // 
-  hfedErrorType2ls = fs->make<TH2F>( "hfedErrorType2ls", "errors vs lumi",300,0,3000, 40,-0.5,39.5); //
+  hfedErrorType1ls = fs->make<TH2F>( "hfedErrorType1ls", "errors vs lumi",300,0,3000, n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5); // 
+  hfedErrorType2ls = fs->make<TH2F>( "hfedErrorType2ls", "errors vs lumi",300,0,3000, n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5); //
 
-  hfed2DErrors1ls  = fs->make<TH2F>("hfed2DErrors1ls", "errors vs lumi",300,0,3000, 40,-0.5,39.5); //
-  //hfed2DErrors2ls  = fs->make<TH2F>("hfed2DErrors2ls", "errors vs lumi",300,0,3000, 40,-0.5,39.5); //
-  hfed2DErrors3ls  = fs->make<TH2F>("hfed2DErrors3ls", "errors vs lumi",300,0,3000, 40,-0.5,39.5); //
-  hfed2DErrors4ls  = fs->make<TH2F>("hfed2DErrors4ls", "errors vs lumi",300,0,3000, 40,-0.5,39.5); //
-  hfed2DErrors5ls  = fs->make<TH2F>("hfed2DErrors5ls", "errors vs lumi",300,0,3000, 40,-0.5,39.5); //
-  hfed2DErrors6ls  = fs->make<TH2F>("hfed2DErrors6ls", "errors vs lumi",300,0,3000, 40,-0.5,39.5); //
-  //hfed2DErrors7ls  = fs->make<TH2F>("hfed2DErrors7ls", "errors vs lumi",300,0,3000, 40,-0.5,39.5); //
-  //hfed2DErrors8ls  = fs->make<TH2F>("hfed2DErrors8ls", "errors vs lumi",300,0,3000, 40,-0.5,39.5); //
-  //hfed2DErrors9ls  = fs->make<TH2F>("hfed2DErrors9ls", "errors vs lumi",300,0,3000, 40,-0.5,39.5); //
-  hfed2DErrors10ls = fs->make<TH2F>("hfed2DErrors10ls","errors vs lumi",300,0,3000, 40,-0.5,39.5); //
-  hfed2DErrors11ls = fs->make<TH2F>("hfed2DErrors11ls","errors vs lumi",300,0,3000, 40,-0.5,39.5); //
-  hfed2DErrors12ls = fs->make<TH2F>("hfed2DErrors12ls","errors vs lumi",300,0,3000, 40,-0.5,39.5); //
-  hfed2DErrors13ls = fs->make<TH2F>("hfed2DErrors13ls","errors vs lumi",300,0,3000, 40,-0.5,39.5); //
-  hfed2DErrors14ls = fs->make<TH2F>("hfed2DErrors14ls","errors vs lumi",300,0,3000, 40,-0.5,39.5); //
-  hfed2DErrors15ls = fs->make<TH2F>("hfed2DErrors15ls","errors vs lumi",300,0,3000, 40,-0.5,39.5); //
-  hfed2DErrors16ls = fs->make<TH2F>("hfed2DErrors16ls","errors vs lumi",300,0,3000, 40,-0.5,39.5); //
+  hfed2DErrors1ls  = fs->make<TH2F>("hfed2DErrors1ls", "errors vs lumi",300,0,3000, n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5); //
+  //hfed2DErrors2ls  = fs->make<TH2F>("hfed2DErrors2ls", "errors vs lumi",300,0,3000, n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5); //
+  hfed2DErrors3ls  = fs->make<TH2F>("hfed2DErrors3ls", "errors vs lumi",300,0,3000, n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5); //
+  hfed2DErrors4ls  = fs->make<TH2F>("hfed2DErrors4ls", "errors vs lumi",300,0,3000, n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5); //
+  hfed2DErrors5ls  = fs->make<TH2F>("hfed2DErrors5ls", "errors vs lumi",300,0,3000, n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5); //
+  hfed2DErrors6ls  = fs->make<TH2F>("hfed2DErrors6ls", "errors vs lumi",300,0,3000, n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5); //
+  //hfed2DErrors7ls  = fs->make<TH2F>("hfed2DErrors7ls", "errors vs lumi",300,0,3000, n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5); //
+  //hfed2DErrors8ls  = fs->make<TH2F>("hfed2DErrors8ls", "errors vs lumi",300,0,3000, n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5); //
+  //hfed2DErrors9ls  = fs->make<TH2F>("hfed2DErrors9ls", "errors vs lumi",300,0,3000, n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5); //
+  hfed2DErrors10ls = fs->make<TH2F>("hfed2DErrors10ls","errors vs lumi",300,0,3000, n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5); //
+  hfed2DErrors11ls = fs->make<TH2F>("hfed2DErrors11ls","errors vs lumi",300,0,3000, n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5); //
+  hfed2DErrors12ls = fs->make<TH2F>("hfed2DErrors12ls","errors vs lumi",300,0,3000, n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5); //
+  hfed2DErrors13ls = fs->make<TH2F>("hfed2DErrors13ls","errors vs lumi",300,0,3000, n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5); //
+  hfed2DErrors14ls = fs->make<TH2F>("hfed2DErrors14ls","errors vs lumi",300,0,3000, n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5); //
+  hfed2DErrors15ls = fs->make<TH2F>("hfed2DErrors15ls","errors vs lumi",300,0,3000, n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5); //
+  hfed2DErrors16ls = fs->make<TH2F>("hfed2DErrors16ls","errors vs lumi",300,0,3000, n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5); //
 
   herrorTimels = fs->make<TH1D>( "herrorTimels", "timeouts vs ls", 1000,0,3000);
   herrorOverls = fs->make<TH1D>( "herrorOverls", "overflows vs ls",1000,0,3000);
@@ -847,46 +877,46 @@ void SiPixelRawDump::beginJob() {
   herrorTimels0 = fs->make<TH1D>("herrorTimels0","timeouts vs ls", 1000,0,3000);
   herrorOverls0 = fs->make<TH1D>("herrorOverls0","overflows vs ls",1000,0,3000);
 
-  hfed2DErrorsType1 = fs->make<TH2F>("hfed2DErrorsType1", "errors type 1 per FED", 40,-0.5,39.5,37, -0.5, 36.5);
-  hfed2DErrorsType2 = fs->make<TH2F>("hfed2DErrorsType2", "errors type 2 per FED", 40,-0.5,39.5,37, -0.5, 36.5);
+  hfed2DErrorsType1 = fs->make<TH2F>("hfed2DErrorsType1", "errors type 1 per FED", n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5, n_of_Channels, -0.5,maxChan);
+  hfed2DErrorsType2 = fs->make<TH2F>("hfed2DErrorsType2", "errors type 2 per FED", n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5, n_of_Channels, -0.5,maxChan);
 
-  hfed2DErrors1 = fs->make<TH2F>("hfed2DErrors1", "errors per FED", 40,-0.5,39.5,37, -0.5, 36.5);
-  //hfed2DErrors2 = fs->make<TH2F>("hfed2DErrors2", "errors per FED", 40,-0.5,39.5,37, -0.5, 36.5);
-  hfed2DErrors3 = fs->make<TH2F>("hfed2DErrors3", "errors per FED", 40,-0.5,39.5,37, -0.5, 36.5);
-  hfed2DErrors4 = fs->make<TH2F>("hfed2DErrors4", "errors per FED", 40,-0.5,39.5,37, -0.5, 36.5);
-  hfed2DErrors5 = fs->make<TH2F>("hfed2DErrors5", "errors per FED", 40,-0.5,39.5,37, -0.5, 36.5);
-  hfed2DErrors6 = fs->make<TH2F>("hfed2DErrors6", "errors per FED", 40,-0.5,39.5,37, -0.5, 36.5);
-  //hfed2DErrors7 = fs->make<TH2F>("hfed2DErrors7", "errors per FED", 40,-0.5,39.5,37, -0.5, 36.5);
-  //hfed2DErrors8 = fs->make<TH2F>("hfed2DErrors8", "errors per FED", 40,-0.5,39.5,37, -0.5, 36.5);
-  //hfed2DErrors9 = fs->make<TH2F>("hfed2DErrors9", "errors per FED", 40,-0.5,39.5,37, -0.5, 36.5);
-  hfed2DErrors10 = fs->make<TH2F>("hfed2DErrors10", "errors per FED", 40,-0.5,39.5,37, -0.5, 36.5);
-  hfed2DErrors11 = fs->make<TH2F>("hfed2DErrors11", "errors per FED", 40,-0.5,39.5,37, -0.5, 36.5);
-  hfed2DErrors12 = fs->make<TH2F>("hfed2DErrors12", "errors per FED", 40,-0.5,39.5,37, -0.5, 36.5);
-  hfed2DErrors13 = fs->make<TH2F>("hfed2DErrors13", "errors per FED", 40,-0.5,39.5,37, -0.5, 36.5);
-  hfed2DErrors14 = fs->make<TH2F>("hfed2DErrors14", "errors per FED", 40,-0.5,39.5,37, -0.5, 36.5);
-  hfed2DErrors15 = fs->make<TH2F>("hfed2DErrors15", "errors per FED", 40,-0.5,39.5,37, -0.5, 36.5);
-  hfed2DErrors16 = fs->make<TH2F>("hfed2DErrors16", "errors per FED", 40,-0.5,39.5,37, -0.5, 36.5);
+  hfed2DErrors1 = fs->make<TH2F>("hfed2DErrors1", "errors per FED", n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5, n_of_Channels, -0.5,maxChan);
+  //hfed2DErrors2 = fs->make<TH2F>("hfed2DErrors2", "errors per FED", n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5, n_of_Channels, -0.5,maxChan);
+  hfed2DErrors3 = fs->make<TH2F>("hfed2DErrors3", "errors per FED", n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5, n_of_Channels, -0.5,maxChan);
+  hfed2DErrors4 = fs->make<TH2F>("hfed2DErrors4", "errors per FED", n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5, n_of_Channels, -0.5,maxChan);
+  hfed2DErrors5 = fs->make<TH2F>("hfed2DErrors5", "errors per FED", n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5, n_of_Channels, -0.5,maxChan);
+  hfed2DErrors6 = fs->make<TH2F>("hfed2DErrors6", "errors per FED", n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5, n_of_Channels, -0.5,maxChan);
+  //hfed2DErrors7 = fs->make<TH2F>("hfed2DErrors7", "errors per FED", n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5, n_of_Channels, -0.5,maxChan);
+  //hfed2DErrors8 = fs->make<TH2F>("hfed2DErrors8", "errors per FED", n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5, n_of_Channels, -0.5,maxChan);
+  //hfed2DErrors9 = fs->make<TH2F>("hfed2DErrors9", "errors per FED", n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5, n_of_Channels, -0.5,maxChan);
+  hfed2DErrors10 = fs->make<TH2F>("hfed2DErrors10", "errors per FED", n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5, n_of_Channels, -0.5,maxChan);
+  hfed2DErrors11 = fs->make<TH2F>("hfed2DErrors11", "errors per FED", n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5, n_of_Channels, -0.5,maxChan);
+  hfed2DErrors12 = fs->make<TH2F>("hfed2DErrors12", "errors per FED", n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5, n_of_Channels, -0.5,maxChan);
+  hfed2DErrors13 = fs->make<TH2F>("hfed2DErrors13", "errors per FED", n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5, n_of_Channels, -0.5,maxChan);
+  hfed2DErrors14 = fs->make<TH2F>("hfed2DErrors14", "errors per FED", n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5, n_of_Channels, -0.5,maxChan);
+  hfed2DErrors15 = fs->make<TH2F>("hfed2DErrors15", "errors per FED", n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5, n_of_Channels, -0.5,maxChan);
+  hfed2DErrors16 = fs->make<TH2F>("hfed2DErrors16", "errors per FED", n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5, n_of_Channels, -0.5,maxChan);
 
 
-  hfedErrorType1ls = fs->make<TH2F>( "hfedErrorType1ls", "errors vs lumi",300,0,3000, 40,-0.5,39.5); // 
-  hfedErrorType2ls = fs->make<TH2F>( "hfedErrorType2ls", "errors vs lumi",300,0,3000, 40,-0.5,39.5); //
+  hfedErrorType1ls = fs->make<TH2F>( "hfedErrorType1ls", "errors vs lumi",300,0,3000, n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5); // 
+  hfedErrorType2ls = fs->make<TH2F>( "hfedErrorType2ls", "errors vs lumi",300,0,3000, n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5); //
 
-  hfed2DErrors1ls  = fs->make<TH2F>("hfed2DErrors1ls", "errors vs lumi",300,0,3000, 40,-0.5,39.5); //
-  //hfed2DErrors2ls  = fs->make<TH2F>("hfed2DErrors2ls", "errors vs lumi",300,0,3000, 40,-0.5,39.5); //
-  hfed2DErrors3ls  = fs->make<TH2F>("hfed2DErrors3ls", "errors vs lumi",300,0,3000, 40,-0.5,39.5); //
-  hfed2DErrors4ls  = fs->make<TH2F>("hfed2DErrors4ls", "errors vs lumi",300,0,3000, 40,-0.5,39.5); //
-  hfed2DErrors5ls  = fs->make<TH2F>("hfed2DErrors5ls", "errors vs lumi",300,0,3000, 40,-0.5,39.5); //
-  hfed2DErrors6ls  = fs->make<TH2F>("hfed2DErrors6ls", "errors vs lumi",300,0,3000, 40,-0.5,39.5); //
-  //hfed2DErrors7ls  = fs->make<TH2F>("hfed2DErrors7ls", "errors vs lumi",300,0,3000, 40,-0.5,39.5); //
-  //hfed2DErrors8ls  = fs->make<TH2F>("hfed2DErrors8ls", "errors vs lumi",300,0,3000, 40,-0.5,39.5); //
-  //hfed2DErrors9ls  = fs->make<TH2F>("hfed2DErrors9ls", "errors vs lumi",300,0,3000, 40,-0.5,39.5); //
-  hfed2DErrors10ls = fs->make<TH2F>("hfed2DErrors10ls","errors vs lumi",300,0,3000, 40,-0.5,39.5); //
-  hfed2DErrors11ls = fs->make<TH2F>("hfed2DErrors11ls","errors vs lumi",300,0,3000, 40,-0.5,39.5); //
-  hfed2DErrors12ls = fs->make<TH2F>("hfed2DErrors12ls","errors vs lumi",300,0,3000, 40,-0.5,39.5); //
-  hfed2DErrors13ls = fs->make<TH2F>("hfed2DErrors13ls","errors vs lumi",300,0,3000, 40,-0.5,39.5); //
-  hfed2DErrors14ls = fs->make<TH2F>("hfed2DErrors14ls","errors vs lumi",300,0,3000, 40,-0.5,39.5); //
-  hfed2DErrors15ls = fs->make<TH2F>("hfed2DErrors15ls","errors vs lumi",300,0,3000, 40,-0.5,39.5); //
-  hfed2DErrors16ls = fs->make<TH2F>("hfed2DErrors16ls","errors vs lumi",300,0,3000, 40,-0.5,39.5); //
+  hfed2DErrors1ls  = fs->make<TH2F>("hfed2DErrors1ls", "errors vs lumi",300,0,3000, n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5); //
+  //hfed2DErrors2ls  = fs->make<TH2F>("hfed2DErrors2ls", "errors vs lumi",300,0,3000, n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5); //
+  hfed2DErrors3ls  = fs->make<TH2F>("hfed2DErrors3ls", "errors vs lumi",300,0,3000, n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5); //
+  hfed2DErrors4ls  = fs->make<TH2F>("hfed2DErrors4ls", "errors vs lumi",300,0,3000, n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5); //
+  hfed2DErrors5ls  = fs->make<TH2F>("hfed2DErrors5ls", "errors vs lumi",300,0,3000, n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5); //
+  hfed2DErrors6ls  = fs->make<TH2F>("hfed2DErrors6ls", "errors vs lumi",300,0,3000, n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5); //
+  //hfed2DErrors7ls  = fs->make<TH2F>("hfed2DErrors7ls", "errors vs lumi",300,0,3000, n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5); //
+  //hfed2DErrors8ls  = fs->make<TH2F>("hfed2DErrors8ls", "errors vs lumi",300,0,3000, n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5); //
+  //hfed2DErrors9ls  = fs->make<TH2F>("hfed2DErrors9ls", "errors vs lumi",300,0,3000, n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5); //
+  hfed2DErrors10ls = fs->make<TH2F>("hfed2DErrors10ls","errors vs lumi",300,0,3000, n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5); //
+  hfed2DErrors11ls = fs->make<TH2F>("hfed2DErrors11ls","errors vs lumi",300,0,3000, n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5); //
+  hfed2DErrors12ls = fs->make<TH2F>("hfed2DErrors12ls","errors vs lumi",300,0,3000, n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5); //
+  hfed2DErrors13ls = fs->make<TH2F>("hfed2DErrors13ls","errors vs lumi",300,0,3000, n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5); //
+  hfed2DErrors14ls = fs->make<TH2F>("hfed2DErrors14ls","errors vs lumi",300,0,3000, n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5); //
+  hfed2DErrors15ls = fs->make<TH2F>("hfed2DErrors15ls","errors vs lumi",300,0,3000, n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5); //
+  hfed2DErrors16ls = fs->make<TH2F>("hfed2DErrors16ls","errors vs lumi",300,0,3000, n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5); //
 
 
   hsizels = fs->make<TProfile>("hsizels"," bpix fed size vs ls",300,0,3000,0,200000.);
@@ -921,8 +951,8 @@ void SiPixelRawDump::beginJob() {
   //hintgl  = fs->make<TProfile>("hintgl", "inst lumi vs ls ",1000,0.,3000.,0.0,1000.);
   //hinstl  = fs->make<TProfile>("hinstl", "intg lumi vs ls ",1000,0.,3000.,0.0,10.);
 
-  hfedchannelsize  = fs->make<TProfile2D>("hfedchannelsize", "pixels per fed/channel",40,-0.5,39.5,37,-0.5,36.5, 0.0,10000.);
-
+  hfedchannelsize  = fs->make<TProfile2D>("hfedchannelsize", "pixels per fed/channel",n_of_FEDs,-0.5,static_cast<float>(n_of_FEDs) - 0.5,
+					   n_of_Channels, -0.5,maxChan,0.0,10000.);  
   hfedchannelsizeb   = fs->make<TH1D>("hfedchannelsizeb", "pixels per bpix channel",200,0.0,maxLink);
   hfedchannelsizeb1  = fs->make<TH1D>("hfedchannelsizeb1", "pixels per bpix1 channel",200,0.0,maxLink);
   hfedchannelsizeb2  = fs->make<TH1D>("hfedchannelsizeb2", "pixels per bpix2 channel",200,0.0,maxLink);
@@ -936,7 +966,7 @@ void SiPixelRawDump::beginJob() {
 
 #ifdef OUTFILE
   outfile.open("pixfed.csv");
-  for(int i=0;i<40;++i) {if(i<39) outfile<<i<<","; else outfile<<i<<endl;}
+  for(int i = 0; i < n_of_FEDs; ++i) {if(i<39) outfile<<i<<","; else outfile<<i<<endl;}
 #endif
 
 }
@@ -1001,7 +1031,14 @@ void SiPixelRawDump::analyze(const  edm::Event& ev, const edm::EventSetup& es) {
   //ev.getByLabel( label, instance, buffers);
   ev.getByToken(rawData , buffers);  // the new bytoken 
 
-  std::pair<int,int> fedIds(FEDNumbering::MINSiPixelFEDID, FEDNumbering::MAXSiPixelFEDID);
+#ifdef PHASE1
+  std::pair<int,int> fedIds(1200,1255); // phase 1
+  const int fedId0=1200;
+#else // phase0
+  std::pair<int,int> fedIds(FEDNumbering::MINSiPixelFEDID, FEDNumbering::MAXSiPixelFEDID); //0
+  const int fedId0=0;
+#endif
+
 
   //PixelDataFormatter formatter(0);  // only for digis
   //bool dummyErrorBool;
@@ -1018,13 +1055,15 @@ void SiPixelRawDump::analyze(const  edm::Event& ev, const edm::EventSetup& es) {
   int countErrorsPerEvent2=0;
   double aveFedSize = 0.;
   int stat1=-1, stat2=-1;
-  int fedchannelsize[36];
-
+  int fedchannelsize[n_of_Channels];
+  bool wrongBX=false;
   int countErrors[20] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 
   countAllEvents++;
 
-  if(printHeaders || printLocal>0) cout<<"Event = "<<countEvents<<" Event number "<<event<<" Run "<<run<<" LS "<<lumiBlock<<endl;
+  if(printHeaders) 
+    cout<<"Event = "<<countEvents<<" Event number "<<event<<" Run "<<run
+	<<" LS "<<lumiBlock<<endl;
 
   // Loop over FEDs
   for (int fedId = fedIds.first; fedId <= fedIds.second; fedId++) {
@@ -1038,7 +1077,7 @@ void SiPixelRawDump::analyze(const  edm::Event& ev, const edm::EventSetup& es) {
     if(printHeaders) cout<<"Get data For FED = "<<fedId<<" size in bytes "<<rawData.size()<<endl;
     if(rawData.size()==0) continue;  // skip if not data for this fed
 
-    for(int i=0;i<36;++i) fedchannelsize[i]=0;
+    for(int i=0;i<n_of_Channels;++i) fedchannelsize[i]=0;
 
     int nWords = rawData.size()/sizeof(Word64);
     //cout<<" size "<<nWords<<endl;
@@ -1052,11 +1091,11 @@ void SiPixelRawDump::analyze(const  edm::Event& ev, const edm::EventSetup& es) {
     else hsize2->Fill(float(2*nWords)); // fpix fed buffer size in words (32bit)
 
 #ifdef IND_FEDS
-    hsizeFeds[fedId]->Fill(float(2*nWords)); // size, includes errors and dummy words
+    hsizeFeds[fedId-fedId0]->Fill(float(2*nWords)); // size, includes errors and dummy words
 #endif
-    hsize2d->Fill(float(fedId),float(2*nWords));  // 2d 
-    hsizep->Fill(float(fedId),float(2*nWords)); // profile 
-    if(fedId<32) hsizels->Fill(float(lumiBlock),float(2*nWords)); // bpix versu sls
+    hsize2d->Fill(float(fedId-fedId0),float(2*nWords));  // 2d 
+    hsizep->Fill(float(fedId-fedId0),float(2*nWords)); // profile 
+    if(fedId<fedIdBpixMax) hsizels->Fill(float(lumiBlock),float(2*nWords)); // bpix versu sls
 
     // check headers
     const Word64* header = reinterpret_cast<const Word64* >(rawData.data()); 
@@ -1065,7 +1104,12 @@ void SiPixelRawDump::analyze(const  edm::Event& ev, const edm::EventSetup& es) {
     unsigned int bxid = 0;
     eventId = MyDecode::header(*header, fedId, printHeaders, bxid);
     //if(fedId = fedIds.first) 
-    if(bx != int(bxid) ) cout<<" Inconsistent BX: from event "<<bx<<" from FED "<<bxid<<endl;
+    if(bx != int(bxid) ) { 
+      wrongBX=true;
+      if(printErrors && !phase1) 
+	cout<<" Inconsistent BX: for event "<<event<<" (fed-header event "<<eventId<<") for LS "<<lumiBlock
+	    <<" for run "<<run<<" for bx "<<bx<<" fed bx "<<bxid<<endl;
+    }
     hbx1->Fill(float(bxid));
 
 
@@ -1098,7 +1142,8 @@ void SiPixelRawDump::analyze(const  edm::Event& ev, const edm::EventSetup& es) {
 
 	//status = MyDecode::data(w,fedChannel, fedId, stat1, stat2, printData);
 	status = decode.data(w,fedChannel, fedId, stat1, stat2, printData);
-	int layer = MyDecode::checkLayerLink(fedId, fedChannel); // get bpix layer 
+	int layer = MyDecode::checkLayerLink(fedId, fedChannel); // get bpix layer, works only for phase0 
+	if(phase1) layer=0;
 	if(layer>10) layer = layer-10; // ignore 1/2 modules 
 	if(status>0) {  // data
 	  countPixels++;
@@ -1137,9 +1182,9 @@ void SiPixelRawDump::analyze(const  edm::Event& ev, const edm::EventSetup& es) {
 	  case(10) : { // Timeout
 
 	    countErrors[10]++;
-	    fedErrorsTime[fedId][(fedChannel-1)]++;
-	    hfed2DErrors10->Fill(float(fedId),float(fedChannel));
-	    hfed2DErrors10ls->Fill(float(lumiBlock),float(fedId)); //errors
+	    fedErrorsTime[fedId-fedId0][(fedChannel-1)]++;
+	    hfed2DErrors10->Fill(float(fedId-fedId0),float(fedChannel));
+	    hfed2DErrors10ls->Fill(float(lumiBlock),float(fedId-fedId)); //errors
 
 	    herrorTimels->Fill(float(lumiBlock));
 	    if(layer==1)      herrorTimels1->Fill(float(lumiBlock));
@@ -1153,9 +1198,9 @@ void SiPixelRawDump::analyze(const  edm::Event& ev, const edm::EventSetup& es) {
 	  case(14) : {  // OVER
 
 	    countErrors[14]++;
-	    fedErrorsOver[fedId][(fedChannel-1)]++;
-	    hfed2DErrors14->Fill(float(fedId),float(fedChannel));
-	    hfed2DErrors14ls->Fill(float(lumiBlock),float(fedId)); //errors
+	    fedErrorsOver[fedId-fedId0][(fedChannel-1)]++;
+	    hfed2DErrors14->Fill(float(fedId-fedId0),float(fedChannel));
+	    hfed2DErrors14ls->Fill(float(lumiBlock),float(fedId-fedId0)); //errors
 
 	    herrorOverls->Fill(float(lumiBlock));
 	    if(layer==1)      herrorOverls1->Fill(float(lumiBlock));
@@ -1168,83 +1213,83 @@ void SiPixelRawDump::analyze(const  edm::Event& ev, const edm::EventSetup& es) {
 	  case(11) : {  // ENE
 
 	    countErrors[11]++;
-	    hfed2DErrors11->Fill(float(fedId),float(fedChannel));
-	    hfed2DErrors11ls->Fill(float(lumiBlock),float(fedId)); //errors
+	    hfed2DErrors11->Fill(float(fedId-fedId0),float(fedChannel));
+	    hfed2DErrors11ls->Fill(float(lumiBlock),float(fedId-fedId0)); //errors
 	    //hbx3->Fill(float(bx));
-	    fedErrorsENE[fedId][(fedChannel-1)]++;
+	    fedErrorsENE[fedId-fedId0][(fedChannel-1)]++;
 	    break; }
 
 	  case(16) : { //FIFO
 
 	    countErrors[16]++;
-	    hfed2DErrors16->Fill(float(fedId),float(fedChannel));
-	    hfed2DErrors16ls->Fill(float(lumiBlock),float(fedId)); //errors
+	    hfed2DErrors16->Fill(float(fedId-fedId0),float(fedChannel));
+	    hfed2DErrors16ls->Fill(float(lumiBlock),float(fedId-fedId0)); //errors
 	    break; }
 
 	  case(12) : {  // NOR
 
 	    countErrors[12]++;
-	    hfed2DErrors12->Fill(float(fedId),float(fedChannel));
-	    hfed2DErrors12ls->Fill(float(lumiBlock),float(fedId)); //errors
+	    hfed2DErrors12->Fill(float(fedId-fedId0),float(fedChannel));
+	    hfed2DErrors12ls->Fill(float(lumiBlock),float(fedId-fedId0)); //errors
 	    //hbx5->Fill(float(bx));
 	    break; }
 
 	  case(15) : {  // TBM Trailer
 
 	    countErrors[15]++;
-	    hfed2DErrors15->Fill(float(fedId),float(fedChannel));
-	    hfed2DErrors15ls->Fill(float(lumiBlock),float(fedId)); //errors
+	    hfed2DErrors15->Fill(float(fedId-fedId0),float(fedChannel));
+	    hfed2DErrors15ls->Fill(float(lumiBlock),float(fedId-fedId0)); //errors
 	    break; }
 
 	  case(13) : {  // FSM
 
 	    countErrors[13]++;
-	    hfed2DErrors13->Fill(float(fedId),float(fedChannel));
-	    hfed2DErrors13ls->Fill(float(lumiBlock),float(fedId)); //errors
+	    hfed2DErrors13->Fill(float(fedId-fedId0),float(fedChannel));
+	    hfed2DErrors13ls->Fill(float(lumiBlock),float(fedId-fedId0)); //errors
 	    break; }
 
 	  case(3) : {  //  inv. pix-dcol
 
 	    countErrors[3]++;
-	    hfed2DErrors3->Fill(float(fedId),float(fedChannel));
-	    hfed2DErrors3ls->Fill(float(lumiBlock),float(fedId)); //errors
+	    hfed2DErrors3->Fill(float(fedId-fedId0),float(fedChannel));
+	    hfed2DErrors3ls->Fill(float(lumiBlock),float(fedId-fedId0)); //errors
 	    //hbx8->Fill(float(bx));
 	    break; }
 
 	  case(4) : {  // inv roc
 	    countErrors[4]++;
-	    hfed2DErrors4->Fill(float(fedId),float(fedChannel));
-	    hfed2DErrors4ls->Fill(float(lumiBlock),float(fedId)); //errors
+	    hfed2DErrors4->Fill(float(fedId-fedId0),float(fedChannel));
+	    hfed2DErrors4ls->Fill(float(lumiBlock),float(fedId-fedId0)); //errors
 	    //hbx9->Fill(float(bx));
 	    break; }
 
 	  case(5) : {  // pix=0
 	    countErrors[5]++;
-	    hfed2DErrors5->Fill(float(fedId),float(fedChannel));
-	    hfed2DErrors5ls->Fill(float(lumiBlock),float(fedId)); //errors
+	    hfed2DErrors5->Fill(float(fedId-fedId0),float(fedChannel));
+	    hfed2DErrors5ls->Fill(float(lumiBlock),float(fedId-fedId0)); //errors
 	    //hbx10->Fill(float(bx));
 
 	    hroc000->Fill(float(stat1)); // count rocs
 	    hcount000->Fill(float(stat2));
-	    hcount0002->Fill(float(fedId),float(stat2));
+	    hcount0002->Fill(float(fedId-fedId0),float(stat2));
 	    break; }
 
 	  case(6) : {  // double pix
 
 	    countErrors[6]++;
-	    hfed2DErrors6->Fill(float(fedId),float(fedChannel));
-	    hfed2DErrors6ls->Fill(float(lumiBlock),float(fedId)); //errors
+	    hfed2DErrors6->Fill(float(fedId-fedId0),float(fedChannel));
+	    hfed2DErrors6ls->Fill(float(lumiBlock),float(fedId-fedId0)); //errors
 	    //hbx12->Fill(float(bx));
 
 	    hrocDouble->Fill(float(stat1)); // count rocs
 	    hcountDouble->Fill(float(stat2));
-	    hcountDouble2->Fill(float(fedId),float(stat2));
+	    hcountDouble2->Fill(float(fedId-fedId0),float(stat2));
 	    break; }
 
 	  case(1) : {  // unknown
 	    countErrors[1]++;
-	    hfed2DErrors1->Fill(float(fedId),float(fedChannel));
-	    hfed2DErrors1ls->Fill(float(lumiBlock),float(fedId)); //errors
+	    hfed2DErrors1->Fill(float(fedId-fedId0),float(fedChannel));
+	    hfed2DErrors1ls->Fill(float(lumiBlock),float(fedId-fedId0)); //errors
 	    break; }
 
 	  }  // end switch
@@ -1255,35 +1300,35 @@ void SiPixelRawDump::analyze(const  edm::Event& ev, const edm::EventSetup& es) {
 	  //herrorFed0->Fill(float(fedId));
 	  //herrorChan0->Fill(float(fedChannel));
 
-	  hfed2d->Fill(float(fedId),float(status));
+	  hfed2d->Fill(float(fedId-fedId0),float(status));
 	  
 	  if(status>=10) {  // hard errors
 	    // Type - 1 Errors
 
 	    countErrorsInFed1++;
-	    hfedErrorType1ls->Fill(float(lumiBlock),float(fedId)); // hard errors
-	    hfed2DErrorsType1->Fill(float(fedId),float(fedChannel));
+	    hfedErrorType1ls->Fill(float(lumiBlock),float(fedId-fedId0)); // hard errors
+	    hfed2DErrorsType1->Fill(float(fedId-fedId0),float(fedChannel));
 
 	    herrorType1->Fill(float(status));
-	    herrorType1Fed->Fill(float(fedId));
+	    herrorType1Fed->Fill(float(fedId-fedId0));
 	    herrorType1Chan->Fill(float(fedChannel));
 
-	    fedErrors[fedId][(fedChannel-1)]++;
+	    fedErrors[fedId-fedId0][(fedChannel-1)]++;
 
 	  } else if(status>0) {  // decode errors
 	    // Type 2 errprs
 
 	    countErrorsInFed2++;
-	    hfedErrorType2ls->Fill(float(lumiBlock),float(fedId)); // decode errors
-	    hfed2DErrorsType2->Fill(float(fedId),float(fedChannel));
+	    hfedErrorType2ls->Fill(float(lumiBlock),float(fedId-fedId0)); // decode errors
+	    hfed2DErrorsType2->Fill(float(fedId-fedId0),float(fedChannel));
 
 	    herrorType2->Fill(float(status));
-	    herrorType2Fed->Fill(float(fedId));
+	    herrorType2Fed->Fill(float(fedId-fedId0));
 	    herrorType2Chan->Fill(float(fedChannel));
 
-	    if(status==5)      decodeErrors000[fedId][(fedChannel-1)]++;
-	    else if(status==6) decodeErrorsDouble[fedId][(fedChannel-1)]++;
-	    else               decodeErrors[fedId][(fedChannel-1)]++;
+	    if(status==5)      decodeErrors000[fedId-fedId0][(fedChannel-1)]++;
+	    else if(status==6) decodeErrorsDouble[fedId-fedId0][(fedChannel-1)]++;
+	    else               decodeErrors[fedId-fedId0][(fedChannel-1)]++;
 	  }
 
 	}
@@ -1301,19 +1346,19 @@ void SiPixelRawDump::analyze(const  edm::Event& ev, const edm::EventSetup& es) {
     //cout<<dummyErrorBool<<" "<<digis.size()<<" "<<errors.size()<<endl;
 
     if(countPixelsInFed>0)  {
-      sumFedPixels[fedId] += countPixelsInFed;
+      sumFedPixels[fedId-fedId0] += countPixelsInFed;
     }
 
     hpixels->Fill(float(countPixelsInFed));
     hpixels0->Fill(float(countPixelsInFed));
     if(countPixelsInFed>0) hpixels1->Fill(float(countPixelsInFed));
-    if(countPixelsInFed>0 && fedId<32)  hpixels2->Fill(float(countPixelsInFed));
-    if(countPixelsInFed>0 && fedId>=32) hpixels3->Fill(float(countPixelsInFed));
+    if(countPixelsInFed>0 && fedId<fedIdBpixMax)  hpixels2->Fill(float(countPixelsInFed));
+    if(countPixelsInFed>0 && fedId>=fedIdBpixMax) hpixels3->Fill(float(countPixelsInFed));
     herrors->Fill(float(countErrorsInFed));
 
-    for(int i=0;i<36;++i) { 
-      hfedchannelsize->Fill( float(fedId), float(i+1), float(fedchannelsize[i]) );
-      if(fedId<32) {
+    for(int i=0;i<n_of_Channels;++i) { 
+      hfedchannelsize->Fill( float(fedId-fedId0), float(i+1), float(fedchannelsize[i]) );
+      if(fedId<fedIdBpixMax) {
 	hfedchannelsizeb->Fill( float(fedchannelsize[i]) );
 	int layer = MyDecode::checkLayerLink(fedId, i); // get bpix layer 
 	if(layer>10) layer = layer-10; // ignore 1/2 modules 
@@ -1340,6 +1385,12 @@ void SiPixelRawDump::analyze(const  edm::Event& ev, const edm::EventSetup& es) {
 
   htotPixels->Fill(float(countPixels));
   htotPixels0->Fill(float(countPixels));
+  if(wrongBX && !phase1) {
+    cout<<" Inconsistent BX: for event "<<event<<" (fed-header event "<<eventId<<") for LS "<<lumiBlock
+	<<" for run "<<run<<" for bx "<<bx<<" pix= "<<countPixels<<endl;
+    htotPixels2->Fill(float(countPixels));
+    hbx2->Fill(float(bx));
+  }
   htotErrors->Fill(float(countErrorsPerEvent));
 
   htotPixelsls->Fill(float(lumiBlock),float(countPixels));

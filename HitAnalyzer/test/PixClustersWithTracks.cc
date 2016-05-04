@@ -2,6 +2,7 @@
 // Author: Danek Kotlinski 
 // Creation Date:  Initial version. 3/06
 // Fails in V71 because of TrackingRecHit. <--- fix 
+// Move to getByToken, 80X, 4/16
 //--------------------------------------------
 #include <memory>
 #include <string>
@@ -118,7 +119,7 @@
 //#define VDM_STUDIES
 //#define ALIGN_STUDIES
 
-const bool isData = false; // set false for MC
+const bool isData = true; // set false for MC
 
 using namespace std;
 
@@ -140,6 +141,16 @@ class PixClustersWithTracks : public edm::EDAnalyzer {
   float countTracks, countGoodTracks, countTracksInPix, countPVs, countEvents, countLumi;  
   float count1, count2, count3, count4;
 
+  // Needed for the ByToken method
+  //edm::EDGetTokenT<edmNew::DetSetVector<SiPixelCluster> > myClus;
+  //edm::EDGetTokenT<SiPixelRecHitCollection> PixelRecHitToken;
+  edm::EDGetTokenT<LumiSummary> LumiToken;
+  edm::EDGetTokenT<edm::ConditionsInLumiBlock> ConditionsInLumiBlockToken;
+  edm::EDGetTokenT<L1GlobalTriggerReadoutRecord> L1TrigReadoutToken;
+  edm::EDGetTokenT<edm::TriggerResults> TrigResultsToken;
+  edm::EDGetTokenT<reco::VertexCollection> VertexCollectionToken;
+  edm::EDGetTokenT<std::vector<reco::Track>> TrackToken;
+
   TH1D *hcharge1,*hcharge2, *hcharge3, *hcharge4, *hcharge5;  // ADD FPIX
   TH1D *hsize1,*hsize2,*hsize3, 
     *hsizex1,*hsizex2,*hsizex3,
@@ -158,7 +169,7 @@ class PixClustersWithTracks : public edm::EDAnalyzer {
 
   TH2F *hpvxy, *hclusMap1, *hclusMap2, *hclusMap3; // Z vs PHI
 
-  TH1F *hladder1id,*hladder2id,*hladder3id,*hz1id,*hz2id,*hz3id;
+  TH1D *hladder1id,*hladder2id,*hladder3id,*hz1id,*hz2id,*hz3id;
 
   TH1D *hpvz, *hpvr, *hNumPv, *hNumPvClean;
   TH1D *hPt, *hEta, *hDz, *hD0,*hzdiff;
@@ -234,9 +245,18 @@ PixClustersWithTracks::PixClustersWithTracks(edm::ParameterSet const& conf)
   src_ =  conf.getParameter<edm::InputTag>( "src" );
   //if(PRINT) cout<<" Construct "<<endl;
 
+  // Consumes 
+  // For the ByToken method
+  //myClus = consumes<edmNew::DetSetVector<SiPixelCluster> >(conf.getParameter<edm::InputTag>( "src" ));
+  //PixelRecHitToken = consumes  <SiPixelRecHitCollection>("...") ;
+  LumiToken                  = consumes <LumiSummary>(edm::InputTag("lumiProducer"));
+  ConditionsInLumiBlockToken = consumes <edm::ConditionsInLumiBlock> (edm::InputTag("conditionsInEdm"));
+  L1TrigReadoutToken         = consumes <L1GlobalTriggerReadoutRecord>(edm::InputTag("gtDigis"));
+  TrigResultsToken           = consumes <edm::TriggerResults>(edm::InputTag("TriggerResults","","HLT"));
+  VertexCollectionToken      = consumes <reco::VertexCollection>(edm::InputTag("offlinePrimaryVertices"));
+  TrackToken                 = consumes <std::vector<reco::Track>>(src_) ;
+
 }
-
-
 
 // Virtual destructor needed.
 PixClustersWithTracks::~PixClustersWithTracks() { }  
@@ -346,12 +366,12 @@ void PixClustersWithTracks::beginJob() {
   hcluDetMap3 = fs->make<TH2F>( "hcluDetMap3", "clu det layer 3",
 				416,0.,416.,160,0.,160.);
 
-  hladder1id = fs->make<TH1F>( "hladder1id", "Ladder L1 id", 23, -11.5, 11.5);
-  hladder2id = fs->make<TH1F>( "hladder2id", "Ladder L2 id", 35, -17.5, 17.5);
-  hladder3id = fs->make<TH1F>( "hladder3id", "Ladder L3 id", 47, -23.5, 23.5);
-  hz1id = fs->make<TH1F>( "hz1id", "Z-index id L1", 11, -5.5, 5.5);
-  hz2id = fs->make<TH1F>( "hz2id", "Z-index id L2", 11, -5.5, 5.5);
-  hz3id = fs->make<TH1F>( "hz3id", "Z-index id L3", 11, -5.5, 5.5);
+  hladder1id = fs->make<TH1D>( "hladder1id", "Ladder L1 id", 23, -11.5, 11.5);
+  hladder2id = fs->make<TH1D>( "hladder2id", "Ladder L2 id", 35, -17.5, 17.5);
+  hladder3id = fs->make<TH1D>( "hladder3id", "Ladder L3 id", 47, -23.5, 23.5);
+  hz1id = fs->make<TH1D>( "hz1id", "Z-index id L1", 11, -5.5, 5.5);
+  hz2id = fs->make<TH1D>( "hz2id", "Z-index id L2", 11, -5.5, 5.5);
+  hz3id = fs->make<TH1D>( "hz3id", "Z-index id L3", 11, -5.5, 5.5);
 
   htracksGoodInPix = fs->make<TH1D>( "htracksGoodInPix", "count good tracks in pix",2000,-0.5,1999.5);
   htracksGood = fs->make<TH1D>( "htracksGood", "count good tracks",2000,-0.5,1999.5);
@@ -631,19 +651,60 @@ void PixClustersWithTracks::analyze(const edm::Event& e,
   int bx        = e.bunchCrossing();
   //int orbit     = e.orbitNumber(); // unused 
 
-  if(PRINT) cout<<"Run "<<run<<" Event "<<event<<" LS "<<lumiBlock<<endl;
+  if(PRINT) cout<<"Run "<<run<<" Event "<<event<<" LS "<<lumiBlock<<" bx "<<endl;
+
+ // Inconsistent BX: for event 20659585 (fed-header event 3882369) for LS 21 for run 254227 for bx 895 pix= 8729
+ // Inconsistent BX: for event 20752843 (fed-header event 3975627) for LS 21 for run 254227 for bx 895 pix= 9257
+ // Inconsistent BX: for event 19980588 (fed-header event 3203372) for LS 21 for run 254227 for bx 895 pix= 14505
+ // Inconsistent BX: for event 20506849 (fed-header event 3729633) for LS 21 for run 254227 for bx 895 pix= 5019
+ // Inconsistent BX: for event 19798240 (fed-header event 3021024) for LS 21 for run 254227 for bx 895 pix= 2283
+ // Inconsistent BX: for event 19962263 (fed-header event 3185047) for LS 21 for run 254227 for bx 895 pix= 1735
+ // Inconsistent BX: for event 20493708 (fed-header event 3716492) for LS 21 for run 254227 for bx 895 pix= 6444
+ // Inconsistent BX: for event 19791851 (fed-header event 3014635) for LS 21 for run 254227 for bx 895 pix= 5652
+ // Inconsistent BX: for event 20150825 (fed-header event 3373609) for LS 21 for run 254227 for bx 895 pix= 9477
+ // Inconsistent BX: for event 19747917 (fed-header event 2970701) for LS 21 for run 254227 for bx 895 pix= 13265
+ // Inconsistent BX: for event 20311581 (fed-header event 3534365) for LS 21 for run 254227 for bx 895 pix= 9403
+ // Inconsistent BX: for event 20444653 (fed-header event 3667437) for LS 21 for run 254227 for bx 895 pix= 9887
+ // Inconsistent BX: for event 20446682 (fed-header event 3669466) for LS 21 for run 254227 for bx 895 pix= 16018
+ // Inconsistent BX: for event 20454700 (fed-header event 3677484) for LS 21 for run 254227 for bx 895 pix= 27807
+ // Inconsistent BX: for event 20011376 (fed-header event 3234160) for LS 21 for run 254227 for bx 895 pix= 8000
+ // Inconsistent BX: for event 20013421 (fed-header event 3236205) for LS 21 for run 254227 for bx 895 pix= 7999
+ // Inconsistent BX: for event 20761275 (fed-header event 3984059) for LS 21 for run 254227 for bx 895 pix= 12280
+ // Inconsistent BX: for event 19948624 (fed-header event 3171408) for LS 21 for run 254227 for bx 895 pix= 9316
+ // Inconsistent BX: for event 20588638 (fed-header event 3811422) for LS 21 for run 254227 for bx 895 pix= 5426
+
+  //int badBx[19] = {
+  //20659585, 20752843, 19980588, 20506849, 19798240, 19962263, 20493708, 19791851, 20150825, 19747917, 
+  //20311581, 20444653, 20446682, 20454700, 20011376, 20013421, 20761275, 19948624, 20588638}; 
+
+
+  //bool select = false;
+  //if(lumiBlock==21) {
+  ////if(event==20659585) cout<<" Event "<<event<<" LS "<<lumiBlock<<endl;
+  //for(int i=0;i<19;++i) {
+  //  if(event==badBx[i]) {select=true; break;}
+  //}      
+  //} else {return;}
+  //if(!select) return;
+
+  //cout<<"Run "<<run<<" Event "<<event<<" LS "<<lumiBlock<<" bx "<<bx<<endl;
 
   hbx0->Fill(float(bx));
   hlumi0->Fill(float(lumiBlock));
 
 #ifdef LUMI
   edm::LuminosityBlock const& iLumi = e.getLuminosityBlock();
+
   edm::Handle<LumiSummary> lumi;
-  iLumi.getByLabel("lumiProducer", lumi);
+  //iLumi.getByLabel("lumiProducer", lumi);
+  iLumi.getByToken(LumiToken, lumi);
+
   edm::Handle<edm::ConditionsInLumiBlock> cond;
+  //iLumi.getByLabel("conditionsInEdm", cond);
+  iLumi.getByToken(ConditionsInLumiBlockToken, cond);
+
   float intlumi = 0, instlumi=0;
   int beamint1=0, beamint2=0;
-  iLumi.getByLabel("conditionsInEdm", cond);
   // This will only work when running on RECO until (if) they fix it in the FW
   // When running on RAW and reconstructing, the LumiSummary will not appear
   // in the event before reaching endLuminosityBlock(). Therefore, it is not
@@ -666,7 +727,8 @@ void PixClustersWithTracks::analyze(const edm::Event& e,
 #ifdef L1
   // Get L1
   Handle<L1GlobalTriggerReadoutRecord> L1GTRR;
-  e.getByLabel("gtDigis",L1GTRR);
+  //e.getByLabel("gtDigis",L1GTRR);
+  e.getByToken(L1TrigReadoutToken,L1GTRR);
 
   if (L1GTRR.isValid()) {
     //bool l1a = L1GTRR->decision();  // global decission?
@@ -686,11 +748,13 @@ void PixClustersWithTracks::analyze(const edm::Event& e,
   bool hlt[256];
   for(int i=0;i<256;++i) hlt[i]=false;
 
+
+  // HLT results 
   edm::TriggerNames TrigNames;
   edm::Handle<edm::TriggerResults> HLTResults;
+  //e.getByLabel(edm::InputTag("TriggerResults","","HLT"),HLTResults);
+  e.getByToken(TrigResultsToken, HLTResults);
 
-  // Extract the HLT results
-  e.getByLabel(edm::InputTag("TriggerResults","","HLT"),HLTResults);
   if ((HLTResults.isValid() == true) && (HLTResults->size() > 0)) {
 
     //TrigNames.init(*HLTResults);
@@ -730,7 +794,8 @@ void PixClustersWithTracks::analyze(const edm::Event& e,
   // -- Primary vertices
   // ----------------------------------------------------------------------
   edm::Handle<reco::VertexCollection> vertices;
-  e.getByLabel("offlinePrimaryVertices", vertices);
+  //e.getByLabel("offlinePrimaryVertices", vertices);
+  e.getByToken(VertexCollectionToken, vertices);
 
   if(PRINT) cout<<" PV list "<<vertices->size()<<endl;
   int pvNotFake = 0, pvsTrue = 0;
@@ -774,14 +839,26 @@ void PixClustersWithTracks::analyze(const edm::Event& e,
 
   if(PRINT) cout<<" Not fake PVs = "<<pvNotFake<<" good position "<<pvsTrue<<endl;
    
+  // Clusters and rechits, not needed
+  //edm::Handle<SiPixelRecHitCollection> hRecHitColl;
+  //iEvent.getByToken(PixelRecHitToken, hRecHitColl); 
+
+  // Get Cluster Collection from InputTag
+  //edm::Handle< edmNew::DetSetVector<SiPixelCluster> > clusters;
+  //e.getByToken( myClus , clusters);
+  //const edmNew::DetSetVector<SiPixelCluster>& input = *clusters;     
+
+
   // -- Tracks
   // ----------------------------------------------------------------------
   Handle<reco::TrackCollection> recTracks;
+  //edm::Handle<std::vector<reco::Track> > hTrackCollection;
   // e.getByLabel("generalTracks", recTracks);
   // e.getByLabel("ctfWithMaterialTracksP5", recTracks);
   // e.getByLabel("splittedTracksP5", recTracks);
   //e.getByLabel("cosmictrackfinderP5", recTracks);
-  e.getByLabel(src_ , recTracks);
+  ///e.getByLabel(src_ , recTracks);
+  e.getByToken(TrackToken, recTracks);
 
   bool missingHit=false, missingHitB=false;
   if(PRINT) cout<<" Tracks "<<recTracks->size()<<endl;
@@ -1471,6 +1548,7 @@ void PixClustersWithTracks::analyze(const edm::Event& e,
 
 
   if(PRINT) cout<<" event with tracks = "<<trackNumber<<" "<<countNiceTracks<<endl;
+  //cout<<" event with tracks = "<<trackNumber<<" "<<countGoodTracks<<endl;
 
   return;
 
@@ -1606,7 +1684,6 @@ void PixClustersWithTracks::analyze(const edm::Event& e,
 #endif // USE_TRAJ
 
 
-  cout<<" event with tracks = "<<trackNumber<<" "<<countGoodTracks<<endl;
 
 } // end 
 

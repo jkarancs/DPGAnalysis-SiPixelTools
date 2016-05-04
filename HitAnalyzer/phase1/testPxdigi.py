@@ -13,7 +13,6 @@ process.load("Configuration.StandardSequences.FrontierConditions_GlobalTag_cff")
 from Configuration.AlCa.GlobalTag import GlobalTag
 process.GlobalTag = GlobalTag(process.GlobalTag, 'auto:upgrade2017', '')
 
-
 process.maxEvents = cms.untracked.PSet(
     input = cms.untracked.int32(-1)
 )
@@ -32,27 +31,27 @@ process.MessageLogger = cms.Service("MessageLogger",
 
 process.source = cms.Source("PoolSource",
     fileNames =  cms.untracked.vstring(
-#    'file:/afs/cern.ch/work/d/dkotlins/public/MC/mu/pt100/digis/digis1.root'
+#    'file:/afs/cern.ch/work/d/dkotlins/public/MC/mu_phase1/pt100_76/digis/digis1.root'
+#    'file:/afs/cern.ch/work/d/dkotlins/public/MC/mu_phase1/pt100_76/digis/digis1_pixonly.root'
 #    'file:digis.root'
-    'file:digis_nodb.root'
+    'file:digis_fromraw.root'
     )
 )
 
 
 process.TFileService = cms.Service("TFileService",
-    fileName = cms.string('histo.root')
+    fileName = cms.string('histo_digis.root')
 )
-
   
 process.analysis = cms.EDAnalyzer("PixDigisTest",
-    Verbosity = cms.untracked.bool(True),
+    Verbosity = cms.untracked.bool(False),
     phase1 = cms.untracked.bool(True),
 # sim in V7
 #    src = cms.InputTag("mix"),
-# my own pixel only digis
-    src = cms.InputTag("simSiPixelDigis"),
+# my own pixel only digis (after digi step)
+#    src = cms.InputTag("simSiPixelDigis"),
 # old default
-#    src = cms.InputTag("siPixelDigis"),
+    src = cms.InputTag("siPixelDigis"),
 )
 
 process.p = cms.Path(process.analysis)

@@ -1,11 +1,9 @@
 ##############################################################################
-
 import FWCore.ParameterSet.Config as cms
 
 process = cms.Process("Test")
 
 process.load("FWCore.MessageLogger.MessageLogger_cfi")
-#process.load("Configuration.Geometry.GeometryIdeal_cff")
 process.load('Configuration.Geometry.GeometryExtended2017Reco_cff')
 
 #process.load("Configuration.StandardSequences.MagneticField_38T_cff")
@@ -16,14 +14,33 @@ process.load("SimGeneral.HepPDTESSource.pythiapdt_cfi")
 
 process.load("Configuration.StandardSequences.FrontierConditions_GlobalTag_cff")
 from Configuration.AlCa.GlobalTag import GlobalTag
-process.GlobalTag = GlobalTag(process.GlobalTag, 'auto:upgrade2017', '')
+#process.GlobalTag = GlobalTag(process.GlobalTag, 'auto:upgrade2017', '')
+process.GlobalTag = GlobalTag(process.GlobalTag, '76X_upgrade2017_design_v8', '')
+
+#process.load('Configuration.StandardSequences.Digi_cff')
 
 # from v7
 #process.load("SimGeneral.MixingModule.pixelDigitizer_cfi")
 # process.load("SimTracker.Configuration.SimTracker_cff")
 process.load("SimG4Core.Configuration.SimG4Core_cff")
 
-# process.load("SimGeneral.MixingModule.mixNoPU_cfi")
+process.MessageLogger = cms.Service("MessageLogger",
+    #debugModules = cms.untracked.vstring('Digitize'),
+    debugModules = cms.untracked.vstring('PixelDigitizer'),
+    destinations = cms.untracked.vstring('cout'),
+    #destinations = cms.untracked.vstring("log","cout"),
+    cout = cms.untracked.PSet(
+        threshold = cms.untracked.string('ERROR')
+    )
+    #log = cms.untracked.PSet(
+    #    threshold = cms.untracked.string('DEBUG')
+    #)
+)
+
+
+
+
+#process.load("SimGeneral.MixingModule.mixNoPU_cfi")
 from SimGeneral.MixingModule.aliases_cfi import * 
 from SimGeneral.MixingModule.mixObjects_cfi import *
 # from SimGeneral.MixingModule.digitizers_cfi import *
@@ -146,17 +163,18 @@ process.maxEvents = cms.untracked.PSet(
 )
 
 process.source = cms.Source("PoolSource", fileNames = cms.untracked.vstring(
-       'file:/afs/cern.ch/work/d/dkotlins/public//MC/mu_phase1/pt100_75/simhits/simHits1.root'
-#       'file:simHits.root'
+#       'file:/afs/cern.ch/work/d/dkotlins/public//MC/mu_phase1/pt100_76/simhits/simHits1.root'
+       'file:/afs/cern.ch/work/d/dkotlins/public//MC/mu_phase1/pt100_76/simhits/simHits1_eta1.root'
+#       'file:simHits_100eve.root'
   )
 )
 
 
 process.o1 = cms.OutputModule("PoolOutputModule",
             outputCommands = cms.untracked.vstring('drop *','keep *_*_*_Test'),
-      fileName = cms.untracked.string('file:/afs/cern.ch/work/d/dkotlins/public/MC/mu_phase1/pt100_75/digis/digis1.root')
-#      fileName = cms.untracked.string('file:/afs/cern.ch/work/d/dkotlins/public/MC/mb/13tev/digis/digis1.root')
-#      fileName = cms.untracked.string('file:digis.root')
+#      fileName = cms.untracked.string('file:/afs/cern.ch/work/d/dkotlins/public/MC/mu_phase1/pt100_76/digis/digis1.root')
+#      fileName = cms.untracked.string('file:/afs/cern.ch/work/d/dkotlins/public/MC/mu_phase1/pt100_76/digis/digis1_pixonly.root')
+      fileName = cms.untracked.string('file:digis.root')
 )
 
 
@@ -176,7 +194,9 @@ if useLocalLA :
         tag = cms.string("SiPixelLorentzAngleSim_phase1_mc_v1")
       ),
     ),
-    connect = cms.string('sqlite_file:../../../../../DB/phase1/SiPixelLorentzAngleSim_phase1_mc_v1.db')
+    #connect = cms.string('sqlite_file:../../../../../DB/phase1/SiPixelLorentzAngleSim_phase1_mc_v1.db')
+    #connect = cms.string('frontier://FrontierPrep/CMS_CONDITIONS')
+    connect = cms.string('frontier://FrontierProd/CMS_CONDITIONS')
   ) # end process
   process.es_prefer_DBReader = cms.ESPrefer("PoolDBESSource","LAReader")
 #  end if
@@ -194,7 +214,8 @@ if useLocalQuality :
         record = cms.string('SiPixelQualityFromDbRcd'),
         tag = cms.string('SiPixelQuality_phase1_ideal')
     )),
-    connect = cms.string('sqlite_file:../../../../../DB/phase1/SiPixelQuality_phase1_ideal.db')
+    #connect = cms.string('sqlite_file:../../../../../DB/phase1/SiPixelQuality_phase1_ideal.db')
+    connect = cms.string('frontier://FrontierProd/CMS_CONDITIONS')
   )
   process.es_prefer_QualityReader = cms.ESPrefer("PoolDBESSource","QualityReader")
 #  end if
@@ -206,11 +227,14 @@ process.g4SimHits.Generator.HepMCProductLabel = 'source'
 # with DB
 # disable dyn. ineff.
 process.simSiPixelDigis.digitizers.pixel.AddPixelInefficiencyFromPython = cms.bool(False)
+process.simSiPixelDigis.digitizers.pixel.AddPixelInefficiency = cms.bool(False)
 #
+#process.simSiPixelDigis.digitizers.pixel.ThresholdInElectrons_BPix_L1 = 5000.0 
+#process.simSiPixelDigis.digitizers.pixel.ThresholdInElectrons_BPix = 5000.0 
+#process.simSiPixelDigis.digitizers.pixel.ThresholdInElectrons_FPix = 5000.0 
 # NO DB case 
 # use the simple linear response 
 #process.simSiPixelDigis.digitizers.pixel.MissCalibrate = cms.bool(False) 
-##process.simSiPixelDigis.digitizers.pixel.ThresholdInElectrons_BPix = 3500.0 
 #process.simSiPixelDigis.digitizers.pixel.AddPixelInefficiencyFromPython = cms.bool(False)
 # use inefficiency from DB Gain calibration payload? NO
 #process.simSiPixelDigis.digitizers.pixel.useDB = cms.bool(False) 
@@ -225,11 +249,50 @@ process.simSiPixelDigis.digitizers.pixel.AddPixelInefficiencyFromPython = cms.bo
 # signal phase1 detector
 process.simSiPixelDigis.digitizers.pixel.NumPixelBarrel = 4 
 process.simSiPixelDigis.digitizers.pixel.NumPixelEndcap = 3 
+process.simSiPixelDigis.digitizers.pixel.thePixelColEfficiency_BPix1 = cms.double(1.0)
+process.simSiPixelDigis.digitizers.pixel.thePixelColEfficiency_BPix2 = cms.double(1.0)
+process.simSiPixelDigis.digitizers.pixel.thePixelColEfficiency_BPix3 = cms.double(1.0)
+process.simSiPixelDigis.digitizers.pixel.thePixelColEfficiency_BPix4 = cms.double(1.0)
+process.simSiPixelDigis.digitizers.pixel.thePixelEfficiency_BPix1 = cms.double(1.0)
+process.simSiPixelDigis.digitizers.pixel.thePixelEfficiency_BPix2 = cms.double(1.0)
+process.simSiPixelDigis.digitizers.pixel.thePixelEfficiency_BPix3 = cms.double(1.0)
+process.simSiPixelDigis.digitizers.pixel.thePixelEfficiency_BPix4 = cms.double(1.0)
+process.simSiPixelDigis.digitizers.pixel.thePixelChipEfficiency_BPix1 = cms.double(1.0)
+process.simSiPixelDigis.digitizers.pixel.thePixelChipEfficiency_BPix2 = cms.double(1.0)
+process.simSiPixelDigis.digitizers.pixel.thePixelChipEfficiency_BPix3 = cms.double(1.0)
+process.simSiPixelDigis.digitizers.pixel.thePixelChipEfficiency_BPix4 = cms.double(1.0)
+process.simSiPixelDigis.digitizers.pixel.thePixelColEfficiency_FPix1 = cms.double(1.0)
+process.simSiPixelDigis.digitizers.pixel.thePixelColEfficiency_FPix2 = cms.double(1.0)
+process.simSiPixelDigis.digitizers.pixel.thePixelColEfficiency_FPix3 = cms.double(1.0)
+process.simSiPixelDigis.digitizers.pixel.thePixelEfficiency_FPix1 = cms.double(1.0)
+process.simSiPixelDigis.digitizers.pixel.thePixelEfficiency_FPix2 = cms.double(1.0)
+process.simSiPixelDigis.digitizers.pixel.thePixelEfficiency_FPix3 = cms.double(1.0)
+process.simSiPixelDigis.digitizers.pixel.thePixelChipEfficiency_FPix1 = cms.double(1.0)
+process.simSiPixelDigis.digitizers.pixel.thePixelChipEfficiency_FPix2 = cms.double(1.0)
+process.simSiPixelDigis.digitizers.pixel.thePixelChipEfficiency_FPix3 = cms.double(1.0)
+
+process.TFileService = cms.Service("TFileService",
+    fileName = cms.string('histo_digis.root')
+)
+  
+process.analysis = cms.EDAnalyzer("PixDigisTest",
+    Verbosity = cms.untracked.bool(False),
+    phase1 = cms.untracked.bool(True),
+# sim in V7
+#    src = cms.InputTag("mix"),
+# my own pixel only digis
+    src = cms.InputTag("simSiPixelDigis"),
+# old default
+#    src = cms.InputTag("siPixelDigis"),
+)
 
 
 #This process is to run the digitizer, pixel gitizer is now clled by the mix module
-process.p1 = cms.Path(process.simSiPixelDigis)
+#process.p1 = cms.Path(process.simSiPixelDigis)
+# run digitizer and analyse digis
+process.p1 = cms.Path(process.simSiPixelDigis*process.analysis)
 
-process.outpath = cms.EndPath(process.o1)
+# Output file, comment out if not needed 
+#process.outpath = cms.EndPath(process.o1)
 
 

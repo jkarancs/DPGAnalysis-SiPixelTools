@@ -1,11 +1,18 @@
 import FWCore.ParameterSet.Config as cms
 
 process = cms.Process("SiPixelCablingReader")
-process.load("Geometry.CMSCommonData.cmsIdealGeometryXML_cfi")
-process.load("Geometry.TrackerGeometryBuilder.trackerGeometry_cfi")
-process.load("Geometry.TrackerNumberingBuilder.trackerNumberingGeometry_cfi")
+#process.load("Geometry.CMSCommonData.cmsIdealGeometryXML_cfi")
+#process.load("Geometry.TrackerGeometryBuilder.trackerGeometry_cfi")
+#process.load("Geometry.TrackerNumberingBuilder.trackerNumberingGeometry_cfi")
+
+process.load("Configuration.StandardSequences.GeometryDB_cff")
+#process.load("Configuration.Geometry.GeometryExtended2017Reco_cff")
+
 process.load("Configuration.StandardSequences.FrontierConditions_GlobalTag_cff")
-process.GlobalTag.globaltag = 'PRE_MC_71_V5::All'
+from Configuration.AlCa.GlobalTag_condDBv2 import GlobalTag
+#process.GlobalTag.globaltag = 'PRE_MC_71_V5::All'
+#process.GlobalTag = GlobalTag(process.GlobalTag, '76X_upgrade2017_design_v8', '')
+process.GlobalTag = GlobalTag(process.GlobalTag, 'auto:run2_mc', '')
 
 process.MessageLogger = cms.Service("MessageLogger",
     cout = cms.untracked.PSet(
@@ -37,7 +44,7 @@ process.source = cms.Source("EmptySource",
 
 ##### DATABASE CONNECTION INFO ######
 process.load("CondCore.DBCommon.CondDBCommon_cfi")
-process.CondDBCommon.connect='sqlite_file:../../../CalibTracker/SiPixelConnectivity/test/cabling_v17.db'
+process.CondDBCommon.connect='sqlite_file:../../../CalibTracker/SiPixelConnectivity/test/cabling_test.db'
 process.CondDBCommon.DBParameters.authenticationPath = '.'
 process.CondDBCommon.DBParameters.messageLevel = 1
 
@@ -49,7 +56,7 @@ process.PoolDBESSourceForReader = cms.ESSource("PoolDBESSource",
     toGet = cms.VPSet(
         cms.PSet(
             record = cms.string('SiPixelFedCablingMapRcd'),
-            tag = cms.string('SiPixelFedCablingMap_v17')
+            tag = cms.string('SiPixelFedCablingMap_vtest')
        ))
 )
 
