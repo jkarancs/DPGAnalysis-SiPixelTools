@@ -111,7 +111,7 @@ void PixelPCL::endJob() {
       // -- print bad ROCs and  DC: NSIG sigma away from mean DC occupancy
       double NSIG(20.);
       for (int iroc = 0; iroc < it->second.nrocs(); ++iroc) {
-	if (it->second.status(iroc) < it->second.average() - it->second.sigma()) {
+	if (it->second.status(iroc) < it->second.average() - 2.*it->second.sigma()) {
 	  cout << "module " << (*it).second.detid()
 	       << " bad ROC " << iroc
 	       << " with nhits = " << it->second.status(iroc)
