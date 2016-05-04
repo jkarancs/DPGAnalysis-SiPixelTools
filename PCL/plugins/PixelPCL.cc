@@ -111,12 +111,19 @@ void PixelPCL::endJob() {
       // -- print bad ROCs and  DC: NSIG sigma away from mean DC occupancy
       double NSIG(20.);
       for (int iroc = 0; iroc < it->second.nrocs(); ++iroc) {
-	if (TMath::Abs(it->second.status(iroc) - it->second.average()) > NSIG*it->second.sigma()) {
+	if (it->second.status(iroc) < it->second.average() - it->second.sigma()) {
 	  cout << "module " << (*it).second.detid()
 	       << " bad ROC " << iroc
 	       << " with nhits = " << it->second.status(iroc)
-	       << " (module ROC average +/- " << NSIG << " sigma = " << it->second.average()
-	       << " +/- " << NSIG*it->second.sigma()
+	       << " (module ROC average +/- " << " 1 sigma = " << it->second.average()
+	       << " +/- " << it->second.sigma()
+	       << endl;
+	} else if (it->second.status(iroc) > it->second.average() + 2.*it->second.sigma()) {
+	  cout << "module " << (*it).second.detid()
+	       << " hot ROC " << iroc
+	       << " with nhits = " << it->second.status(iroc)
+	       << " (module ROC average +/- " << " 1 sigma = " << it->second.average()
+	       << " +/- " << it->second.sigma()
 	       << endl;
 	} else {
 	  for (int idc = 0; idc < 26; ++idc) {
@@ -152,7 +159,7 @@ void PixelPCL::endJob() {
     for (map<int, map<pair<int, int>, triplet> >::iterator iIdx = fIndices.begin();
 	 iIdx != fIndices.end();
 	 ++iIdx) {
-      
+
       ofstream OS(Form("maps/map%d.txt", iIdx->first));
       for (map<pair<int, int>, triplet>::iterator iPix = iIdx->second.begin(); iPix != iIdx->second.end(); ++iPix) {
 	OS << iPix->first.first << " " << iPix->first.second << " "
