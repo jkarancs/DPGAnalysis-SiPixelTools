@@ -60,4 +60,6 @@ bin: test/pclDiag.o lib
 
 # -- clean up
 clean:
-	rm -f $(PIXPCL) src/pclDiag.o src/pclDiag src/libPixPcl.so
+	rm -f $(PIXPCL) src/pclDiag.o src/pclDiag
+	rm -f src/libPixPcl.so
+	rm -f test/pclDiag test/pclDiag.o
