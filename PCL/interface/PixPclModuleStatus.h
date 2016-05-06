@@ -15,6 +15,9 @@ public:
   /// fill with online coordinates
   void fill(int iroc, int idc);
 
+  /// fill with online coordinates (nhit > 1)
+  void fill(int iroc, int idc, int nhit);
+
   /// return DC status of a ROC (=hits on DC idc on ROC iroc)
   int status(int iroc, int idc);
 

@@ -25,6 +25,11 @@ void PixPclModuleStatus::fill(int iroc, int idc) {
   if (iroc < static_cast<int>(fRocs.size())) fRocs[iroc].fill(idc);
 }
 
+// ----------------------------------------------------------------------
+void PixPclModuleStatus::fill(int iroc, int idc, int nhit) {
+  if (iroc < static_cast<int>(fRocs.size())) fRocs[iroc].fill(idc, nhit);
+}
+
 
 // ----------------------------------------------------------------------
 int PixPclModuleStatus::status(int iroc, int idc) {
