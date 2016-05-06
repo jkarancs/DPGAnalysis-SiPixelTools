@@ -2,6 +2,7 @@
 #define PIXPCLDETECTORSTATUS_h
 
 #include <map>
+#include <string>
 
 #include "DPGAnalysis-SiPixelTools/PCL/interface/PixPclModuleStatus.h"
 
@@ -10,6 +11,10 @@ class PixPclDetectorStatus {
 public:
   PixPclDetectorStatus();
   ~PixPclDetectorStatus();
+
+  /// file I/O
+  void readFromFile(std::string filename);
+  void dumpToFile(std::string filename);
 
   /// add PixPclModuleStatus for detID
   void addModule(int detid);
