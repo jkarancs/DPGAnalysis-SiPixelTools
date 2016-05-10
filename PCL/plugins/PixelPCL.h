@@ -72,6 +72,7 @@ class PixelPCL : public edm::EDAnalyzer {
  private:
   int                                                     fVerbose;
   bool                                                    fUpdateMaps;
+  std::string                                             fFileName;
   int                                                     fInit;
   edm::InputTag                                           fPixelClusterLabel, fPixelRecHitLabel;
   edm::EDGetTokenT<edmNew::DetSetVector<SiPixelCluster>>  fSiPixelClusterToken;

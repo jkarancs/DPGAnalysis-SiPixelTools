@@ -53,6 +53,7 @@ using namespace reco;
 PixelPCL::PixelPCL(edm::ParameterSet const& iConfig):
   fVerbose(iConfig.getUntrackedParameter<int>("verbose", 0)),
   fUpdateMaps(iConfig.getUntrackedParameter<bool>("updateMaps", false)),
+  fFileName(iConfig.getUntrackedParameter<string>("fileName", string("PixelPclDcCounts.txt"))),
   fInit(0),
   fPixelClusterLabel(iConfig.getUntrackedParameter<InputTag>("pixelClusterLabel", edm::InputTag("siPixelClusters"))),
   fPixelRecHitLabel(iConfig.getUntrackedParameter<InputTag>("pixelRecHitLabel", InputTag("siPixelRecHits"))),
@@ -92,6 +93,7 @@ void PixelPCL::endJob() {
   }
 
   // -- summary printout
+  if (0) {
   if (dead == fDet.nmodules()) {
     cout << "==> the pixel detector was likely off" << endl;
   } else {
@@ -140,13 +142,15 @@ void PixelPCL::endJob() {
       }
     }
   }
+  }
 
-  // -- write out complete DC counts (for validation)
-  ofstream OD("PixelPclDcCounts.txt");
+  // -- write out complete DC counts (for validation and analysis)
+  ofstream OD(fFileName.c_str());
   for (map<int, PixPclModuleStatus>::iterator it = fDet.begin(); it != itEnd; ++it) {
     for (int iroc = 0; iroc < it->second.nrocs(); ++iroc) {
       for (int idc = 0; idc < 26; ++idc) {
 	OD << Form("%10d %2d %2d %3d", it->first, iroc, idc, it->second.getRoc(iroc)->status(idc)) << endl;
+	cout << Form("%10d %2d %2d %3d", it->first, iroc, idc, it->second.getRoc(iroc)->status(idc)) << endl;
       }
     }
   }
