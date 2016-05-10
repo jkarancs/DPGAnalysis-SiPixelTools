@@ -252,6 +252,13 @@ void PixelPCL::analyze(const edm::Event& iEvent,
   }
 
 
+  int run   = iEvent.id().run();
+  int event = iEvent.id().event();
+  int ls    = iEvent.luminosityBlock();
+  fDet.run(run);
+  fDet.ls(ls);
+
+
   // ----------------------------------------------------------------------
   // -- Pixel cluster analysis
   // ----------------------------------------------------------------------
