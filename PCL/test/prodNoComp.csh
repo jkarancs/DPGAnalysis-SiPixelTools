@@ -85,6 +85,8 @@ cmsRun $JOB.py |& tee $JOB.log
 date
 pwd
 ls -rtl
+cat $JOB.txt >> $JOB.log
+ls -rtl
 
 setenv ROOTFILE `ls *.txt`
 
