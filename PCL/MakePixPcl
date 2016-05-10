@@ -1,5 +1,5 @@
 # ======================================================================
-# NOTE: make all
+# NOTE: make -f MakePixPcl all
 # -----
 #
 # ======================================================================
@@ -34,7 +34,7 @@ SOFLAGS      = -shared
 CXXFLAGS    += $(ROOTCFLAGS)
 LIBS         = $(ROOTLIBS)
 GLIBS        = $(filter-out -lz, $(ROOTGLIBS))
-EXTHEADERS   = -I/Users/ursl/macros/pixel/
+EXTHEADERS   = -I../..
 
 # -- Files
 PIXPCL      := src/PixPclDetectorStatus.o src/PixPclModuleStatus.o src/PixPclRocStatus.o
