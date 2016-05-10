@@ -27,9 +27,9 @@ int main(int argc, char *argv[]) {
   int verbose(0);
   // -- command line arguments
   for (int i = 0; i < argc; i++){
-    if (!strcmp(argv[i],"-f"))  {fileName   = string(argv[++i]); }     // single file instead of chain
-    if (!strcmp(argv[i],"-o"))  {fileName   = string(argv[++i]); }     // single file instead of chain
-    if (!strcmp(argv[i],"-v"))  {verbose    = atoi(argv[++i]); }       // set verbosity level
+    if (!strcmp(argv[i],"-f"))  {fileName    = string(argv[++i]); }     // input file
+    if (!strcmp(argv[i],"-o"))  {outfileName = string(argv[++i]); }     // output file
+    if (!strcmp(argv[i],"-v"))  {verbose     = atoi(argv[++i]); }       // set verbosity level
   }
 
 
