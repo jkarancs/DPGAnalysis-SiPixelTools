@@ -145,18 +145,7 @@ void PixelPCL::endJob() {
   }
 
   // -- write out complete DC counts (for validation and analysis)
-  ofstream OD(fFileName.c_str());
-  for (map<int, PixPclModuleStatus>::iterator it = fDet.begin(); it != itEnd; ++it) {
-    for (int iroc = 0; iroc < it->second.nrocs(); ++iroc) {
-      for (int idc = 0; idc < 26; ++idc) {
-	OD << Form("%10d %2d %2d %3d", it->first, iroc, idc, it->second.getRoc(iroc)->status(idc)) << endl;
-	cout << Form("%10d %2d %2d %3d", it->first, iroc, idc, it->second.getRoc(iroc)->status(idc)) << endl;
-      }
-    }
-  }
-  OD.close();
-
-
+  fDet.dumpToFile(fFileName.c_str());
 
   // -- write maps from offline detid/col/row to online roc/col/row
   if (fUpdateMaps) {

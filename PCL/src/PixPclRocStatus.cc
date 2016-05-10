@@ -25,10 +25,12 @@ void PixPclRocStatus::fill(int idc) {
   if (idc<26) fDC[idc]++;
 }
 
-// ----------------------------------------------------------------------
-void PixPclRocStatus::fillOffline(int col, int row) {
 
+// ----------------------------------------------------------------------
+void PixPclRocStatus::fill(int idc, int hits) {
+  if (idc<26) fDC[idc] += hits;
 }
+
 
 // ----------------------------------------------------------------------
 int PixPclRocStatus::status(int idc) {

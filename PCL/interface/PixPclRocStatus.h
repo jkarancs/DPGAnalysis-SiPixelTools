@@ -8,7 +8,8 @@ public:
   PixPclRocStatus();
   ~PixPclRocStatus();
   void fill(int idc);
-  void fillOffline(int col, int row);
+  void fill(int idc, int hits);
+
   int status(int idc);
   int status();
 

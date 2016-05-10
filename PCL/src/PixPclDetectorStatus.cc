@@ -1,7 +1,10 @@
 #include <iostream>
+#include <fstream>
 #include <map>
 #include <cmath>
 #include <vector>
+
+#include <TString.h>
 
 #include "DPGAnalysis-SiPixelTools/PCL/interface/PixPclDetectorStatus.h"
 
@@ -17,6 +20,42 @@ PixPclDetectorStatus::PixPclDetectorStatus() {
 PixPclDetectorStatus::~PixPclDetectorStatus() {
 
 }
+
+// ----------------------------------------------------------------------
+void PixPclDetectorStatus::readFromFile(std::string filename) {
+  ifstream INS;
+  string sline;
+  INS.open(filename.c_str());
+  int oldDetId(-1);
+  int detid, roc, dc, hits;
+  PixPclModuleStatus *pMod;
+  while (getline(INS, sline)) {
+    sscanf(sline.c_str(), "%d %d %d %d", &detid, &roc, &dc, &hits);
+    if (detid != oldDetId) {
+      oldDetId = detid;
+      addModule(detid);
+      pMod = getModule(detid);
+      cout << "adding " << detid << endl;
+    }
+    pMod->fill(roc, dc, hits);
+  }
+}
+
+
+// ----------------------------------------------------------------------
+void PixPclDetectorStatus::dumpToFile(std::string filename) {
+  ofstream OD(filename.c_str());
+  map<int, PixPclModuleStatus>::iterator itEnd = end();
+  for (map<int, PixPclModuleStatus>::iterator it = begin(); it != itEnd; ++it) {
+    for (int iroc = 0; iroc < it->second.nrocs(); ++iroc) {
+      for (int idc = 0; idc < 26; ++idc) {
+	OD << Form("%10d %2d %2d %3d", it->first, iroc, idc, it->second.getRoc(iroc)->status(idc)) << endl;
+      }
+    }
+  }
+  OD.close();
+}
+
 
 // ----------------------------------------------------------------------
 void PixPclDetectorStatus::addModule(int detid) {
