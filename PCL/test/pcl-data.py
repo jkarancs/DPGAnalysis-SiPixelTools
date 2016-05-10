@@ -87,6 +87,7 @@ process.pcl = cms.EDAnalyzer(
     "PixelPCL",
     verbose            = cms.untracked.int32(0),
     updateMaps         = cms.untracked.bool(False),
+    fileName           = cms.untracked.string("PixelPclDcCounts.txt"),
     pixelClusterLabel  = cms.untracked.InputTag('siPixelClusters::RECO')
 )
 
