@@ -85,7 +85,8 @@ cmsRun $JOB.py |& tee $JOB.log
 date
 pwd
 ls -rtl
-cat $JOB.txt >> $JOB.log
+echo "double column counts"
+cat $JOB.txt
 ls -rtl
 
 setenv ROOTFILE `ls *.txt`
