@@ -22,12 +22,12 @@ PixPclModuleStatus::~PixPclModuleStatus() {};
 
 // ----------------------------------------------------------------------
 void PixPclModuleStatus::fill(int iroc, int idc) {
-  if (iroc < static_cast<int>(fRocs.size())) fRocs[iroc].fill(idc);
+  if (iroc < fNrocs) fRocs[iroc].fill(idc);
 }
 
 // ----------------------------------------------------------------------
 void PixPclModuleStatus::fill(int iroc, int idc, int nhit) {
-  if (iroc < static_cast<int>(fRocs.size())) fRocs[iroc].fill(idc, nhit);
+  if (iroc < fNrocs) fRocs[iroc].fill(idc, nhit);
 }
 
 
@@ -62,6 +62,11 @@ int PixPclModuleStatus::detid() {
 // ----------------------------------------------------------------------
 int PixPclModuleStatus::nrocs() {
   return fNrocs;
+}
+
+// ----------------------------------------------------------------------
+void PixPclModuleStatus::setNrocs(int iroc) {
+  fNrocs = iroc;
 }
 
 

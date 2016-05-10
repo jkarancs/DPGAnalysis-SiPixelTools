@@ -30,9 +30,10 @@ public:
   /// get a ROC
   PixPclRocStatus* getRoc(int i);
 
-  /// accessors
+  /// accessors and setters
   int    detid();
   int    nrocs();
+  void   setNrocs(int iroc);
   double average();
   double sigma();
 
