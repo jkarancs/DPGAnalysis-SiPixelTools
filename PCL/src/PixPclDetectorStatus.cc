@@ -12,7 +12,7 @@ using namespace std;
 
 
 // ----------------------------------------------------------------------
-PixPclDetectorStatus::PixPclDetectorStatus() {
+PixPclDetectorStatus::PixPclDetectorStatus(): fLS0(9999999), fLS1(0), fRun0(9999999), fRun1(0) {
 
 }
 
@@ -27,24 +27,59 @@ void PixPclDetectorStatus::readFromFile(std::string filename) {
   string sline;
   INS.open(filename.c_str());
   int oldDetId(-1);
-  int detid, roc, dc, hits;
+  int detid(0), roc(0), dc(0), hits(0), nroc(0);
   PixPclModuleStatus *pMod(0);
+  bool readOK(false);
   while (getline(INS, sline)) {
+    if (string::npos != sline.find("# PixPclDetectorStatus START")) {
+      cout << "found start marker" << endl;
+      readOK = true;
+      continue;
+    }
+    if (!readOK) continue;
+
+    if (string::npos != sline.find("# PixPclDetectorStatus END")) {
+      pMod->setNrocs(nroc+1);
+      cout << "set nrocs = " << nroc+1 << " for detid = " << oldDetId << " pMod->detid = " << pMod->detid() << endl;
+      cout << "found end marker" << endl;
+      break;
+    }
+
+    if (sline.find("# PixPclDetectorStatus for LS") != string::npos) {
+      sscanf(sline.c_str(), "# PixPclDetectorStatus for LS  %d .. %d", &fLS0, &fLS1);
+      continue;
+    }
+    if (sline.find("# PixPclDetectorStatus for run") != string::npos) {
+      sscanf(sline.c_str(), "# PixPclDetectorStatus for run %d .. %d", &fRun0, &fRun1);
+      continue;
+    }
+
     sscanf(sline.c_str(), "%d %d %d %d", &detid, &roc, &dc, &hits);
+    if (roc > nroc) nroc = roc;
     if (detid != oldDetId) {
+      if (pMod) {
+	pMod->setNrocs(nroc+1);
+	cout << "set nrocs = " << nroc+1 << " for detid = " << oldDetId << " pMod->detid = " << pMod->detid() << endl;
+      }
+
       oldDetId = detid;
       addModule(detid);
       pMod = getModule(detid);
+      nroc = 0;
       cout << "adding " << detid << endl;
     }
     if (pMod) pMod->fill(roc, dc, hits);
   }
+  INS.close();
 }
 
 
 // ----------------------------------------------------------------------
 void PixPclDetectorStatus::dumpToFile(std::string filename) {
   ofstream OD(filename.c_str());
+  OD << "# PixPclDetectorStatus START" << endl;
+  OD << "# PixPclDetectorStatus for LS  " << fLS0 << " .. " << fLS1 << endl;
+  OD << "# PixPclDetectorStatus for run " << fRun0 << " .. " << fRun1 << endl;
   map<int, PixPclModuleStatus>::iterator itEnd = end();
   for (map<int, PixPclModuleStatus>::iterator it = begin(); it != itEnd; ++it) {
     for (int iroc = 0; iroc < it->second.nrocs(); ++iroc) {
@@ -53,6 +88,7 @@ void PixPclDetectorStatus::dumpToFile(std::string filename) {
       }
     }
   }
+  OD << "# PixPclDetectorStatus END" << endl;
   OD.close();
 }
 
@@ -74,6 +110,20 @@ void PixPclDetectorStatus::addModule(int detid, int nrocs) {
 // ----------------------------------------------------------------------
 void PixPclDetectorStatus::fill(int detid, int roc, int idc) {
   fModules[detid].fill(roc, idc);
+}
+
+
+// ----------------------------------------------------------------------
+void PixPclDetectorStatus::ls(int ls) {
+  if (ls < fLS0) fLS0 = ls;
+  if (ls > fLS1) fLS1 = ls;
+}
+
+
+// ----------------------------------------------------------------------
+void PixPclDetectorStatus::run(int run) {
+  if (run < fRun0) fRun0 = run;
+  if (run > fRun1) fRun1 = run;
 }
 
 

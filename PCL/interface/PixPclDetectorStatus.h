@@ -25,12 +25,17 @@ public:
   /// fill hit in double idc in ROC roc into module detid
   void fill(int detid, int roc, int idc);
 
-
   /// fill hit in OFFLINE col/row into module detid
   void fillOffline(int detid, int col, int row);
 
   /// number of modules in detector
   int nmodules();
+
+  /// pass lumisection
+  void ls(int ls);
+
+  /// pass run
+  void run(int run);
 
   /// get a Module
   PixPclModuleStatus* getModule(int detid);
@@ -44,6 +49,12 @@ public:
  private:
   std::map<int, PixPclModuleStatus> fModules;
   std::map<int, PixPclModuleStatus>::iterator fNext;
+
+  /// first and last lumisection seen in this instance
+  int fLS0, fLS1;
+
+  /// first and last run seen in this instance (likely to be the same number!)
+  int fRun0, fRun1;
 };
 
 #endif
