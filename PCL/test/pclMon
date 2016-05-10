@@ -1,0 +1,165 @@
+#!/usr/bin/env perl
+
+# Usage:       pclMon [-r] 272007
+# ------
+#              run PixelPcl jobs
+#
+#          -r  do NOT replicate data to PSI, use local mirror
+#          -a  do NOT replicate data to PSI, use AAA
+# ----------------------------------------------------------------------
+
+# ----------------------------------------------------------------------
+# Send all questions, wishes and complaints to the
+#
+# Author    Urs Langenegger <urslangenegger@gmail.com>
+# ----------------------------------------------------------------------
+
+use Getopt::Std;
+getopts('ar');
+
+my $HOME = $ENV{'HOME'};
+my $dasFile = "$HOME/dasExpress.txt";
+my $SEPREFIX = "srm://t3se01.psi.ch:8443/srm/managerv2?SFN=/pnfs/psi.ch/cms/trivcat";
+my $submit = "$HOME/perl/run";
+
+# -- loop over all runs provided
+my $runA, $runB, $runS;
+my $idx, $runDir;
+my @files;
+foreach $run (@ARGV) {
+    @files = ();
+    $runA = substr($run, 0, 3);
+    $runB = substr($run, 3, 3);
+    $runS = $runA . "/" . $runB;
+    @files = &runLines($dasFile, $runS);
+    $runDir = "run-$run";
+    unless (-e $runDir) {
+	mkdir($runDir);
+    }
+    unless ($opt_r || $opt_a) {
+	&dataReplica($runDir);
+    }
+    $idx = 0;
+    foreach $ifile (@files) {
+	$filename = sprintf("$runDir/pcl-$run-%04i.py", $idx);
+	unless ($opt_a) {
+	    # /store/user/ursl/files/pcl/$ldir
+	    @tmp = split(/\//, $ifile); $ifile = pop(@tmp);
+	    $ifile = "/store/user/ursl/files/pcl/run-$run/".$ifile;
+	}
+	&mkPyFile($filename, $ifile);
+	$idx++;
+    }
+    chdir($runDir);
+    system("$submit -t ../../../../../pcl.tar -c ../prodNoComp.csh -m batch -q short.q -r 'PFNS srm://t3se01.psi.ch:8443/srm/managerv2\\?SFN=/pnfs/psi.ch/cms/trivcat%STORAGE1 /store/user/ursl/pixel/pcl/$runDir%SITE T3_CH_PSI' *-0000.py");
+    chdir("..");
+}
+exit(0);
+
+
+
+# ----------------------------------------------------------------------
+sub runLines() {
+    my $lfile = shift(@_);
+    my $runpattern = shift(@_);
+    open(IN, "$lfile") || die "cannot open $lfile\n";
+    my @lines = <IN>;
+    close(IN);
+    my @lfiles = ();
+    foreach $line (@lines) {
+	if ($line =~ /$runpattern/) {
+	    chop($line);
+	    push(@lfiles, $line);
+	}
+    }
+    print "looked for $runpattern, found $#lfiles files\n";
+    return @lfiles;
+}
+
+
+# ----------------------------------------------------------------------
+sub dataReplica() {
+    my $ldir   = shift(@_);
+
+    chdir($ldir);
+    open(OUT, ">dr") || die "Cannot open dr for output\n";
+    foreach $file (@files) {
+	print OUT "$file\n";
+    }
+    close OUT;
+
+    system("srmmkdir $SEPREFIX/store/user/ursl/files/pcl/$ldir");
+    system("data_replica.py --discovery --to-site T3_CH_PSI dr /store/user/ursl/files/pcl/$ldir");
+    chdir("..");
+}
+
+
+# ----------------------------------------------------------------------
+sub mkPyFile() {
+    my $lfile = shift(@_);
+    my $rfile = shift(@_);
+    my $dccounts = $lfile;
+    ($bla, $dccounts) = split(/\//, $dccounts);
+    $dccounts =~ s/py$/txt/g;
+    open(OUT, ">$lfile") || die "cannot open $lfile\n";
+    print OUT << "EOF";
+# ----------------------------------------------------------------------
+# -- RECO py template file for running pixel PCL
+# ----------------------------------------------------------------------
+import os
+import FWCore.ParameterSet.Config as cms
+process = cms.Process("PCL")
+
+
+# ----------------------------------------------------------------------
+process.load("FWCore.MessageLogger.MessageLogger_cfi")
+process.MessageLogger.cerr.threshold = 'INFO'
+process.MessageLogger.cerr.FwkReport.reportEvery = 100
+process.MessageLogger.categories.append('HLTrigReport')
+process.MessageLogger.categories.append('L1GtTrigReport')
+process.options = cms.untracked.PSet(
+    SkipEvent = cms.untracked.vstring('ProductNotFound'),
+    wantSummary = cms.untracked.bool(True)
+)
+
+# -- Database configuration
+process.load("CondCore.CondDB.CondDB_cfi")
+
+# -- Conditions
+process.load("Configuration.StandardSequences.MagneticField_38T_cff")
+process.load("Configuration.StandardSequences.GeometryRecoDB_cff")
+process.load("RecoVertex.BeamSpotProducer.BeamSpot_cfi")
+process.load("Configuration.StandardSequences.FrontierConditions_GlobalTag_condDBv2_cff")
+from Configuration.AlCa.GlobalTag_condDBv2 import GlobalTag
+process.GlobalTag = GlobalTag(process.GlobalTag, '80X_dataRun2_Express_v3', '')
+
+# -- number of events
+process.maxEvents = cms.untracked.PSet(
+    input = cms.untracked.int32(-1)
+)
+
+# -- Input files
+process.source = cms.Source(
+    "PoolSource",
+    fileNames = cms.untracked.vstring("$rfile")
+)
+
+
+process.pcl = cms.EDAnalyzer(
+    "PixelPCL",
+    verbose            = cms.untracked.int32(0),
+    updateMaps         = cms.untracked.bool(False),
+    fileName           = cms.untracked.string("$dccounts"),
+    pixelClusterLabel  = cms.untracked.InputTag('siPixelClusters::RECO')
+)
+
+# -- Path
+process.p = cms.Path(
+    process.pcl
+)
+
+EOF
+
+
+    close(OUT);
+}
