@@ -28,7 +28,7 @@ void PixPclDetectorStatus::readFromFile(std::string filename) {
   INS.open(filename.c_str());
   int oldDetId(-1);
   int detid, roc, dc, hits;
-  PixPclModuleStatus *pMod;
+  PixPclModuleStatus *pMod(0);
   while (getline(INS, sline)) {
     sscanf(sline.c_str(), "%d %d %d %d", &detid, &roc, &dc, &hits);
     if (detid != oldDetId) {
@@ -37,7 +37,7 @@ void PixPclDetectorStatus::readFromFile(std::string filename) {
       pMod = getModule(detid);
       cout << "adding " << detid << endl;
     }
-    pMod->fill(roc, dc, hits);
+    if (pMod) pMod->fill(roc, dc, hits);
   }
 }
 
@@ -62,6 +62,14 @@ void PixPclDetectorStatus::addModule(int detid) {
   PixPclModuleStatus a(detid);
   fModules.insert(make_pair(detid, a));
 }
+
+
+// ----------------------------------------------------------------------
+void PixPclDetectorStatus::addModule(int detid, int nrocs) {
+  PixPclModuleStatus a(detid, nrocs);
+  fModules.insert(make_pair(detid, a));
+}
+
 
 // ----------------------------------------------------------------------
 void PixPclDetectorStatus::fill(int detid, int roc, int idc) {

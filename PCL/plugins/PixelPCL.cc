@@ -222,11 +222,13 @@ void PixelPCL::analyze(const edm::Event& iEvent,
       const PixelGeomDetUnit *pgdu = dynamic_cast<const PixelGeomDetUnit*>((*it));
       if (0 == pgdu) continue;
       DetId detId = (*it)->geographicalId();
+      int nrocs = pgdu->specificTopology().ncolumns()/52*pgdu->specificTopology().nrows()/80;
       cout << "detid = " << detId.rawId()
 	   << " columns =  " << pgdu->specificTopology().ncolumns()
 	   << " rows = " << pgdu->specificTopology().nrows()
+	   << " nrocs = " << nrocs
 	   << endl;
-      fDet.addModule(detId);
+      fDet.addModule(detId, nrocs);
       map<pair<int, int>, triplet> a;
       fIndices.insert(make_pair(detId, a));
       ++nmod;

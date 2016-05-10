@@ -19,6 +19,9 @@ public:
   /// add PixPclModuleStatus for detID
   void addModule(int detid);
 
+  /// add PixPclModuleStatus for detID, specifying nrocs
+  void addModule(int detid, int nrocs);
+
   /// fill hit in double idc in ROC roc into module detid
   void fill(int detid, int roc, int idc);
 
