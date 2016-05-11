@@ -6,6 +6,10 @@
 #
 #          -r  do NOT replicate data to PSI, use local mirror
 #          -a  do NOT replicate data to PSI, use AAA
+#
+# History      2016/05/10 First shot
+#              2016/05/11 Change to one py file per run
+#
 # ----------------------------------------------------------------------
 
 # ----------------------------------------------------------------------
@@ -31,7 +35,9 @@ foreach $run (@ARGV) {
     $runA = substr($run, 0, 3);
     $runB = substr($run, 3, 3);
     $runS = $runA . "/" . $runB;
-    @files = &runLines($dasFile, $runS);
+    if ($opt_r) {
+	@files = &runLinesLocal($run);
+    }
     $runDir = "run-$run";
     unless (-e $runDir) {
 	mkdir($runDir);
@@ -40,16 +46,8 @@ foreach $run (@ARGV) {
 	&dataReplica($runDir);
     }
     $idx = 0;
-    foreach $ifile (@files) {
-	$filename = sprintf("$runDir/pcl-$run-%04i.py", $idx);
-	unless ($opt_a) {
-	    # /store/user/ursl/files/pcl/$ldir
-	    @tmp = split(/\//, $ifile); $ifile = pop(@tmp);
-	    $ifile = "/store/user/ursl/files/pcl/run-$run/".$ifile;
-	}
-	&mkPyFile($filename, $ifile);
-	$idx++;
-    }
+    $filename = sprintf("$runDir/pcl-$run-%04i.py", $idx);
+    &mkPyFile(\@files, $filename);
     chdir($runDir);
     system("$submit -t ../../../../../pcl.tar -c ../prodNoComp.csh -m batch -q short.q -r 'PFNS srm://t3se01.psi.ch:8443/srm/managerv2\\?SFN=/pnfs/psi.ch/cms/trivcat%STORAGE1 /store/user/ursl/pixel/pcl/$runDir%SITE T3_CH_PSI' *.py");
     chdir("..");
@@ -76,6 +74,20 @@ sub runLines() {
     return @lfiles;
 }
 
+# ----------------------------------------------------------------------
+sub runLinesLocal() {
+    my $run        = shift(@_);
+    @sefiles = `srmls $SEPREFIX/store/user/ursl/files/pcl/run-$run`;
+    my @lines = grep(/root$/, @sefiles);
+    foreach $line (@lines) {
+	($bla, $f) = split(/trivcat/, $line, 2);
+	chop($f);
+	push(@lfiles, $f);
+    }
+    print "looked for $run, found $#lfiles files\n";
+    return @lfiles;
+}
+
 
 # ----------------------------------------------------------------------
 sub dataReplica() {
@@ -96,11 +108,21 @@ sub dataReplica() {
 
 # ----------------------------------------------------------------------
 sub mkPyFile() {
-    my $lfile = shift(@_);
-    my $rfile = shift(@_);
+#    my $lfile = shift(@_);
+    my ($aref, $lfile) = @_;
+    my @array = @$aref;
+    print "array: \n"; foreach $f (@array) {print "$f\n";}
+    print "lfile = $lfile \n";
     my $dccounts = $lfile;
     ($bla, $dccounts) = split(/\//, $dccounts);
     $dccounts =~ s/py$/txt/g;
+
+    $poolsource = "    fileNames = cms.untracked.vstring(\n";
+    foreach $f (@array) {
+	$poolsource .= "        \"$f\",\n"
+    }
+    $poolsource .= "    )";
+
     open(OUT, ">$lfile") || die "cannot open $lfile\n";
     print OUT << "EOF";
 # ----------------------------------------------------------------------
@@ -141,7 +163,7 @@ process.maxEvents = cms.untracked.PSet(
 # -- Input files
 process.source = cms.Source(
     "PoolSource",
-    fileNames = cms.untracked.vstring("$rfile")
+$poolsource
 )
 
 
