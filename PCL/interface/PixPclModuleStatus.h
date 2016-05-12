@@ -27,6 +27,9 @@ public:
   /// return module status (= hits on module)
   int status();
 
+  /// do dc counts analysis
+  void analysis(double thr0 = 10, double rms = 1);
+
   /// get a ROC
   PixPclRocStatus* getRoc(int i);
 

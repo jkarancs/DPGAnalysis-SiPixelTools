@@ -5,6 +5,8 @@
 #include <vector>
 
 #include <TString.h>
+#include <TMath.h>
+#include <TH1.h>
 
 #include "DPGAnalysis-SiPixelTools/PCL/interface/PixPclDetectorStatus.h"
 
@@ -21,6 +23,24 @@ PixPclDetectorStatus::~PixPclDetectorStatus() {
 
 }
 
+
+// ----------------------------------------------------------------------
+void PixPclDetectorStatus::analysis() {
+  occupancy();
+
+  if (fDetAverage < 1.) {
+    cout << "detector likely switched off, stop" << endl;
+    return;
+  }
+  int cnt(0);
+  map<int, PixPclModuleStatus>::iterator itEnd = end();
+  for (map<int, PixPclModuleStatus>::iterator it = begin(); it != itEnd; ++it) {
+    it->second.analysis(fDetAverage, fDetSigma);
+    ++cnt;
+  }
+}
+
+
 // ----------------------------------------------------------------------
 void PixPclDetectorStatus::readFromFile(std::string filename) {
   ifstream INS;
@@ -32,7 +52,7 @@ void PixPclDetectorStatus::readFromFile(std::string filename) {
   bool readOK(false);
   while (getline(INS, sline)) {
     if (string::npos != sline.find("# PixPclDetectorStatus START")) {
-      cout << "found start marker" << endl;
+      // cout << "found start marker" << endl;
       readOK = true;
       continue;
     }
@@ -40,8 +60,8 @@ void PixPclDetectorStatus::readFromFile(std::string filename) {
 
     if (string::npos != sline.find("# PixPclDetectorStatus END")) {
       pMod->setNrocs(nroc+1);
-      cout << "set nrocs = " << nroc+1 << " for detid = " << oldDetId << " pMod->detid = " << pMod->detid() << endl;
-      cout << "found end marker" << endl;
+      // cout << "set nrocs = " << nroc+1 << " for detid = " << oldDetId << " pMod->detid = " << pMod->detid() << endl;
+      // cout << "found end marker" << endl;
       break;
     }
 
@@ -59,14 +79,18 @@ void PixPclDetectorStatus::readFromFile(std::string filename) {
     if (detid != oldDetId) {
       if (pMod) {
 	pMod->setNrocs(nroc+1);
-	cout << "set nrocs = " << nroc+1 << " for detid = " << oldDetId << " pMod->detid = " << pMod->detid() << endl;
+	// cout << "set nrocs = " << nroc+1 << " for detid = " << oldDetId << " pMod->detid = " << pMod->detid() << endl;
       }
 
       oldDetId = detid;
-      addModule(detid);
+      if (0 == getModule(detid)) {
+	addModule(detid);
+	// cout << "adding " << detid << endl;
+      } else {
+	// cout << "retrieving " << detid << endl;
+      }
       pMod = getModule(detid);
       nroc = 0;
-      cout << "adding " << detid << endl;
     }
     if (pMod) pMod->fill(roc, dc, hits);
   }
@@ -149,5 +173,31 @@ int PixPclDetectorStatus::nmodules() {
 
 // ----------------------------------------------------------------------
 PixPclModuleStatus* PixPclDetectorStatus::getModule(int detid) {
+  if (fModules.find(detid) == fModules.end()) {
+    return 0;
+  }
   return &(fModules[detid]);
+}
+
+
+// ----------------------------------------------------------------------
+void PixPclDetectorStatus::occupancy() {
+  fDetAverage = fDetSigma = 0.;
+  double ave(0.), sig(0.);
+  int nrocs(0);
+  map<int, PixPclModuleStatus>::iterator itEnd = end();
+  for (map<int, PixPclModuleStatus>::iterator it = begin(); it != itEnd; ++it) {
+    int inc = it->second.status();
+    ave   += inc;
+    nrocs += it->second.nrocs();
+  }
+  fDetAverage = ave/nrocs;
+
+  for (map<int, PixPclModuleStatus>::iterator it = begin(); it != itEnd; ++it) {
+    int inc = it->second.status();
+    sig += (fDetAverage - inc) * (fDetAverage - inc);
+  }
+
+  fDetSigma   = sig/(nrocs - 1);
+  fDetSigma   = TMath::Sqrt(fDetSigma);
 }

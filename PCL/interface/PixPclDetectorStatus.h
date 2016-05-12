@@ -28,6 +28,13 @@ public:
   /// fill hit in OFFLINE col/row into module detid
   void fillOffline(int detid, int col, int row);
 
+
+  /// determine detector average nhits and RMS
+  void occupancy();
+
+  /// analysis of detector performance
+  void analysis();
+
   /// number of modules in detector
   int nmodules();
 
@@ -55,6 +62,9 @@ public:
 
   /// first and last run seen in this instance (likely to be the same number!)
   int fRun0, fRun1;
+
+  /// average (per module) number of hits over entire detector
+  int fDetAverage, fDetSigma;
 };
 
 #endif
