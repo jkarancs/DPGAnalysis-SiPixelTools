@@ -1,6 +1,6 @@
 #!/usr/bin/env perl
 
-# Usage:       pclMon [-r] [-n 30] 272007
+# Usage:       pclMon [-r|a] [-n 30] 272007
 # ------
 #              run PixelPcl jobs
 #
@@ -8,8 +8,8 @@
 #       -a     do NOT replicate data to PSI, use AAA
 #       -n 30  create py files with 30 input filenames
 #
-# History      2016/05/10 First shot
-#              2016/05/11 Change to one py file per run
+# History:     2016/05/10 First shot
+# --------     2016/05/11 Change to one py file per run
 #              2016/05/12 Added $opt_n
 #
 # ----------------------------------------------------------------------
@@ -21,12 +21,31 @@
 # ----------------------------------------------------------------------
 
 use Getopt::Std;
-getopts('arn:');
+getopts('adn:qr');
 
-my $HOME = $ENV{'HOME'};
-my $dasFile = "$HOME/dasExpress.txt";
-my $SEPREFIX = "srm://t3se01.psi.ch:8443/srm/managerv2?SFN=/pnfs/psi.ch/cms/trivcat";
-my $submit = "$HOME/perl/run";
+my $HOME          = $ENV{'HOME'};
+my $BASE          = "$HOME/pixel/pcl/CMSSW_8_0_7/src/DPGAnalysis-SiPixelTools/PCL/test";
+my $dasFile       = "$HOME/dasExpress.txt";
+my $processedRuns = "$HOME/pclMon.runs";
+my $SEPREFIX      = "srm://t3se01.psi.ch:8443/srm/managerv2?SFN=/pnfs/psi.ch/cms/trivcat";
+my $submit        = "$HOME/perl/run";
+
+# -- check for new runs to process
+if ($opt_q) {
+    @runs = checkForNewRuns();
+    # -- submit them!
+    chdir($BASE);
+    foreach $r (@runs) {
+	print "pclMon -a -n 20 $r\n";
+	if (!$opt_d) {
+	    system("./pclMon -a -n 20 $r > cronlog/pclMon-$r.log");
+	    open(APP, ">>$processedRuns") || die "cannot open $processedRuns $!";
+	    print APP "$r\n";
+	    close(APP);
+	}
+    }
+    exit(0);
+}
 
 
 if (!$opt_n) {
@@ -209,4 +228,37 @@ EOF
 
 	close(OUT);
     }
+}
+
+
+# ----------------------------------------------------------------------
+sub checkForNewRuns() {
+    my $firstRun = 272930;
+    # -- read in runs already processed
+    open(IN, "$processedRuns") || die "cannot open $processedRuns\n";
+    my @runsDone = <IN>;
+    close(IN);
+
+    # -- read in all files
+    open(IN, "$dasFile") || die "cannot open $dasFile\n";
+    my @lines = <IN>;
+    close(IN);
+
+    my @runsToDo = ();
+    # -- get list of runs
+    foreach $line (@lines) {
+	$line =~ /([0-9]{3})\/([0-9]{3})\/[0-9]*\/[A-Z,0-9,-]*\.root$/;
+	$run = $1.$2;
+	if ($run < $firstRun) {next;}
+	if (grep(/$run/, @runsDone)) {
+	    # print "  already processed\n";
+	} else {
+	    if (grep(/$run/, @runsToDo)) {
+	    } else {
+		# print "  adding $run to todo list\n";
+		push(@runsToDo, $run);
+	    }
+	}
+    }
+    return @runsToDo;
 }
