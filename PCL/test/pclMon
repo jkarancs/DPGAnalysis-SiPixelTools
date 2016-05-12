@@ -1,14 +1,16 @@
 #!/usr/bin/env perl
 
-# Usage:       pclMon [-r] 272007
+# Usage:       pclMon [-r] [-n 30] 272007
 # ------
 #              run PixelPcl jobs
 #
-#          -r  do NOT replicate data to PSI, use local mirror
-#          -a  do NOT replicate data to PSI, use AAA
+#       -r     do NOT replicate data to PSI, use local mirror
+#       -a     do NOT replicate data to PSI, use AAA
+#       -n 30  create py files with 30 input filenames
 #
 # History      2016/05/10 First shot
 #              2016/05/11 Change to one py file per run
+#              2016/05/12 Added $opt_n
 #
 # ----------------------------------------------------------------------
 
@@ -19,37 +21,46 @@
 # ----------------------------------------------------------------------
 
 use Getopt::Std;
-getopts('ar');
+getopts('arn:');
 
 my $HOME = $ENV{'HOME'};
 my $dasFile = "$HOME/dasExpress.txt";
 my $SEPREFIX = "srm://t3se01.psi.ch:8443/srm/managerv2?SFN=/pnfs/psi.ch/cms/trivcat";
 my $submit = "$HOME/perl/run";
 
+
+if (!$opt_n) {
+    $opt_n = -1;
+}
+
 # -- loop over all runs provided
 my $runA, $runB, $runS;
-my $idx, $runDir;
+my $runDir;
 my @files;
 foreach $run (@ARGV) {
     @files = ();
     $runA = substr($run, 0, 3);
     $runB = substr($run, 3, 3);
     $runS = $runA . "/" . $runB;
-    if ($opt_r) {
-	@files = &runLinesLocal($run);
-    }
     $runDir = "run-$run";
     unless (-e $runDir) {
 	mkdir($runDir);
     }
-    unless ($opt_r || $opt_a) {
+    if ($opt_r) {
+	print "run on local files\n";
+	@files = &runLinesLocal($run);
+    } elsif (!$opt_r && !$opt_a) {
+	@files = &runLines($dasFile, $runS);
+	print "replicate files to PSI\n";
 	&dataReplica($runDir);
+    } elsif ($opt_a) {
+	@files = &runLines($dasFile, $runS);
+	print "use AAA\n";
     }
-    $idx = 0;
-    $filename = sprintf("$runDir/pcl-$run-%04i.py", $idx);
+    $filename = "$runDir/pcl-$run";
     &mkPyFile(\@files, $filename);
     chdir($runDir);
-    system("$submit -t ../../../../../pcl.tar -c ../prodNoComp.csh -m batch -q short.q -r 'PFNS srm://t3se01.psi.ch:8443/srm/managerv2\\?SFN=/pnfs/psi.ch/cms/trivcat%STORAGE1 /store/user/ursl/pixel/pcl/$runDir%SITE T3_CH_PSI' *.py");
+#    system("$submit -t ../../../../../pcl.tar -c ../prodNoComp.csh -m batch -q short.q -r 'PFNS srm://t3se01.psi.ch:8443/srm/managerv2\\?SFN=/pnfs/psi.ch/cms/trivcat%STORAGE1 /store/user/ursl/pixel/pcl/$runDir%SITE T3_CH_PSI' *.py");
     chdir("..");
 }
 exit(0);
@@ -70,7 +81,7 @@ sub runLines() {
 	    push(@lfiles, $line);
 	}
     }
-    print "looked for $runpattern, found $#lfiles files\n";
+    print "looked for $runpattern, found $#lfiles+1 files\n";
     return @lfiles;
 }
 
@@ -84,7 +95,7 @@ sub runLinesLocal() {
 	chop($f);
 	push(@lfiles, $f);
     }
-    print "looked for $run, found $#lfiles files\n";
+    print "looked for $run, found $#lfiles+1 files\n";
     return @lfiles;
 }
 
@@ -111,20 +122,34 @@ sub mkPyFile() {
 #    my $lfile = shift(@_);
     my ($aref, $lfile) = @_;
     my @array = @$aref;
-    print "array: \n"; foreach $f (@array) {print "$f\n";}
-    print "lfile = $lfile \n";
-    my $dccounts = $lfile;
-    ($bla, $dccounts) = split(/\//, $dccounts);
-    $dccounts =~ s/py$/txt/g;
-
-    $poolsource = "    fileNames = cms.untracked.vstring(\n";
-    foreach $f (@array) {
-	$poolsource .= "        \"$f\",\n"
+    my $idx = 0;
+    my $njobs = 1;
+    if ($opt_n > 0) {
+	$njobs = int(($#array+1)/$opt_n);
+	my $rest = ($#array+1) % $opt_n;
+	if ($rest != 0) {
+	    print "njobs = $njobs; rest = $rest\n";
+	    $njobs = $njobs + 1;
+	}
+    } else {
+	$opt_n = $#array+1;
     }
-    $poolsource .= "    )";
+    print "njobs = $njobs\n";
+    for ($idx = 0; $idx < $njobs; $idx++) {
+	$filename = sprintf("%s-%04i.py", $lfile, $idx);
+	my $dccounts = $filename;
+	($bla, $dccounts) = split(/\//, $dccounts);
+	$dccounts =~ s/py$/txt/g;
 
-    open(OUT, ">$lfile") || die "cannot open $lfile\n";
-    print OUT << "EOF";
+	$poolsource = "    fileNames = cms.untracked.vstring( *(\n";
+	for ($f = $idx*$opt_n; $f < ($idx+1)*$opt_n; $f++) {
+	    $poolsource .= "        \"@array[$f]\",\n";
+	    if ($f == $#array) {last;}
+	}
+	$poolsource .= "    ) )";
+
+	open(OUT, ">$filename") || die "cannot open $filename\n";
+	print OUT << "EOF";
 # ----------------------------------------------------------------------
 # -- RECO py template file for running pixel PCL
 # ----------------------------------------------------------------------
@@ -182,6 +207,6 @@ process.p = cms.Path(
 
 EOF
 
-
-    close(OUT);
+	close(OUT);
+    }
 }
