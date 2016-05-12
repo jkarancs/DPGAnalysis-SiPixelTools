@@ -251,7 +251,6 @@ void PixelPCL::analyze(const edm::Event& iEvent,
     }
   }
 
-
   int run   = iEvent.id().run();
   int event = iEvent.id().event();
   int ls    = iEvent.luminosityBlock();
