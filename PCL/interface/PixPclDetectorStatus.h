@@ -65,6 +65,9 @@ public:
 
   /// average (per module) number of hits over entire detector
   int fDetAverage, fDetSigma;
+
+  /// total hits in detector
+  unsigned long int fDetHits;
 };
 
 #endif

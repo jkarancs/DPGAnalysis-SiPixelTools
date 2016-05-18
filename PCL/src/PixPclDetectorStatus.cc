@@ -14,7 +14,7 @@ using namespace std;
 
 
 // ----------------------------------------------------------------------
-PixPclDetectorStatus::PixPclDetectorStatus(): fLS0(9999999), fLS1(0), fRun0(9999999), fRun1(0) {
+PixPclDetectorStatus::PixPclDetectorStatus(): fLS0(9999999), fLS1(0), fRun0(9999999), fRun1(0), fDetHits(0) {
 
 }
 
@@ -29,8 +29,16 @@ void PixPclDetectorStatus::analysis() {
   occupancy();
 
   if (fDetAverage < 1.) {
-    cout << "detector likely switched off, stop" << endl;
+    cout << "detector likely switched off, stop: NOANALYSIS" << endl;
     return;
+  } else {
+    //    cout << "detector switched on" << endl;
+  }
+  if (fDetHits < 1.e6) {
+    cout << "probably a short run, stop: NOANALYSIS" << endl;
+    return;
+  } else {
+    //    cout << "long run: " << fDetHits << endl;
   }
   int cnt(0);
   map<int, PixPclModuleStatus>::iterator itEnd = end();
@@ -73,6 +81,10 @@ void PixPclDetectorStatus::readFromFile(std::string filename) {
       sscanf(sline.c_str(), "# PixPclDetectorStatus for run %d .. %d", &fRun0, &fRun1);
       continue;
     }
+    if (sline.find("# PixPclDetectorStatus total hits = ") != string::npos) {
+      sscanf(sline.c_str(), "# PixPclDetectorStatus total hits = %ld", &fDetHits);
+      continue;
+    }
 
     sscanf(sline.c_str(), "%d %d %d %d", &detid, &roc, &dc, &hits);
     if (roc > nroc) nroc = roc;
@@ -92,7 +104,10 @@ void PixPclDetectorStatus::readFromFile(std::string filename) {
       pMod = getModule(detid);
       nroc = 0;
     }
-    if (pMod) pMod->fill(roc, dc, hits);
+    if (pMod) {
+      fDetHits += hits;
+      pMod->fill(roc, dc, hits);
+    }
   }
   INS.close();
 }
@@ -104,6 +119,7 @@ void PixPclDetectorStatus::dumpToFile(std::string filename) {
   OD << "# PixPclDetectorStatus START" << endl;
   OD << "# PixPclDetectorStatus for LS  " << fLS0 << " .. " << fLS1 << endl;
   OD << "# PixPclDetectorStatus for run " << fRun0 << " .. " << fRun1 << endl;
+  OD << "# PixPclDetectorStatus total hits = " << fDetHits << endl;
   map<int, PixPclModuleStatus>::iterator itEnd = end();
   for (map<int, PixPclModuleStatus>::iterator it = begin(); it != itEnd; ++it) {
     for (int iroc = 0; iroc < it->second.nrocs(); ++iroc) {
@@ -133,6 +149,7 @@ void PixPclDetectorStatus::addModule(int detid, int nrocs) {
 
 // ----------------------------------------------------------------------
 void PixPclDetectorStatus::fill(int detid, int roc, int idc) {
+  ++fDetHits;
   fModules[detid].fill(roc, idc);
 }
 
