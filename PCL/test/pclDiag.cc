@@ -63,7 +63,7 @@ int main(int argc, char *argv[]) {
     sort(tmpdirs.begin(), tmpdirs.end());
     for (unsigned int i = 0; i < tmpdirs.size(); ++i) {
       fileName = Form("%s/pcl-%s-%04d.sge.log", tmpdirs[i].c_str(), runName.c_str(), i);
-      cout << "tmpdirs[" << i << "] = " << tmpdirs[i] << ": " << fileName << endl;
+      cout << "   " << tmpdirs[i] << "/" << fileName << endl;
       a.readFromFile(fileName);
     }
     a.dumpToFile(outfileName);
