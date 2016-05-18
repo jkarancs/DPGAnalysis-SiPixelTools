@@ -10,8 +10,8 @@
 #
 # History:     2016/05/10 First shot
 # --------     2016/05/11 Change to one py file per run
-#              2016/05/12 Added $opt_n
-#
+#              2016/05/12 Add $opt_n
+#              2016/05/13 Add $opt_h: combine and analysis
 # ----------------------------------------------------------------------
 
 # ----------------------------------------------------------------------
@@ -21,7 +21,7 @@
 # ----------------------------------------------------------------------
 
 use Getopt::Std;
-getopts('adn:qr');
+getopts('adhn:qr');
 
 my $HOME          = $ENV{'HOME'};
 my $BASE          = "$HOME/pixel/pcl/CMSSW_8_0_7/src/DPGAnalysis-SiPixelTools/PCL/test";
@@ -30,7 +30,13 @@ my $processedRuns = "$HOME/pclMon.runs";
 my $SEPREFIX      = "srm://t3se01.psi.ch:8443/srm/managerv2?SFN=/pnfs/psi.ch/cms/trivcat";
 my $submit        = "$HOME/perl/run";
 
-# -- check for new runs to process
+if (!$opt_n) {
+    $opt_n = -1;
+}
+
+# ---------------------------------------
+# -- query: check for new runs to process
+# ---------------------------------------
 if ($opt_q) {
     @runs = checkForNewRuns();
     # -- submit them!
@@ -47,10 +53,102 @@ if ($opt_q) {
     exit(0);
 }
 
+# --------------------------------
+# -- run harvest step
+# --------------------------------
+if ($opt_h) {
+    chdir("$BASE");
+    my @runs = ();
+    # -- read in all processed runs
+    opendir(D, ".") || die "Can't open directory: $!\n";
+    while (my $f = readdir(D)) {
+	if ($f =~ /run-[0-9]{6}$/) {
+	    $f =~ s/run-//;
+	    push(@runs, $f);
+	}
+    }
+    closedir(D);
 
-if (!$opt_n) {
-    $opt_n = -1;
+    # -- sort them
+    sub numerically {$a <=> $b;}
+    @runs = sort numerically @runs;
+
+    # -- now check which ones have not been combined
+    my $oldRun = -1;
+    chdir("..");
+    opendir(D, ".") || die "Can't open directory: $!\n";
+    while (my $f = readdir(D)) {
+	if ($f =~ /^combined-[0-9]{6}.txt$/) {
+	    $f =~ s/combined-//;
+	    $f =~ s/.txt$//;
+	    push(@cruns, $f);
+	    # -- check for last combined/analyzed run that does NOT have NOANALYSIS
+	    $bla = `/bin/grep 'NOANALYSIS' problems-combined-$f.txt`;
+	    if ($bla =~ "NOANALYSIS") {
+	    } else {
+		if ($f > $oldRun) {
+		    $oldRun = $f;
+		}
+	    }
+	}
+    }
+    closedir(D);
+    @cruns = sort numerically @cruns;
+
+    my @nruns = ();
+    foreach $r (@runs) {
+	if (!grep(/$r/, @cruns)) {
+	    # -- check that they have output from the batch job before adding them
+	    if (-e "$BASE/run-$r/tmp-pcl-$r-0000/pcl-$r-0000.sge.log") {
+		push(@nruns, $r);
+	    }
+	}
+    }
+    @nruns = sort numerically @nruns;
+    foreach $r (@nruns) {
+	print "new run to harvest:  $r\n";
+    }
+
+    # -- harvesting: combine, analysis, grep for non-OK, diff to previous run
+    foreach $r (@nruns) {
+	print "test/pclDiag -r $r\n";
+	if (!$opt_d) {
+	    system("test/pclDiag -r $r");
+	}
+
+	print "test/pclDiag -f combined-$r.txt\n";
+	if (!$opt_d) {
+	    if (-e "ana-combined-$r.txt") {unlink("ana-combined-$r.txt");}
+	    system("test/pclDiag -f combined-$r.txt > ana-combined-$r.txt");
+	}
+
+	print "grep -v OK combined-$r.txt\n";
+	if (!$opt_d) {
+	    if (-e "problems-combined-$r.txt") {unlink("problems-combined-$r.txt");}
+	    system("/bin/grep -v OK ana-combined-$r.txt > problems-combined-$r.txt");
+	}
+
+	if ($oldRun > 0) {
+	    $bla = `/bin/grep 'NOANALYSIS' problems-combined-$r.txt`;
+	    chop($bla);
+	    print "============>$bla<==\n";
+	    if ($bla =~ "NOANALYSIS") {
+		# do not compare, do NOT increase $oldRun!
+		next;
+	    } else {
+		print "diff problems-combined-$oldRun.txt problems-combined-$r.txt\n";
+		if (!$opt_d) {
+		    if (-e "diff-problems-$oldRun-$r.txt") {unlink("diff-problems-$oldRun-$r.txt");}
+		    system("/usr/bin/diff problems-combined-$oldRun.txt problems-combined-$r.txt > diff-problems-$oldRun-$r.txt");
+		}
+	    }
+	}
+	$oldRun = $r;
+    }
+
+    exit(0);
 }
+
 
 # -- loop over all runs provided
 my $runA, $runB, $runS;
@@ -233,7 +331,7 @@ EOF
 
 # ----------------------------------------------------------------------
 sub checkForNewRuns() {
-    my $firstRun = 272930;
+    my $firstRun = 272008;
     # -- read in runs already processed
     open(IN, "$processedRuns") || die "cannot open $processedRuns\n";
     my @runsDone = <IN>;
